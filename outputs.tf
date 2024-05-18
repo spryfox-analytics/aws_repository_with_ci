@@ -6,6 +6,14 @@ output "codeartifact_repository_id" {
   value = aws_codeartifact_repository.this.id
 }
 
+output "codebuild_project_arn" {
+  value = [for project in aws_codebuild_project.this : project.arn]
+}
+
+output "codebuild_project_name" {
+  value = [for project in aws_codebuild_project.this : project.name]
+}
+
 output "codebuild_project_role_arn" {
   value = aws_iam_role.codebuild.arn
 }
@@ -19,7 +27,7 @@ output "codecommit_repository_arn" {
 }
 
 output "codecommit_repository_name" {
-  value = aws_codebuild_project.this.name
+  value = aws_codecommit_repository.this.repository_name
 }
 
 output "codepipeline_arn" {
