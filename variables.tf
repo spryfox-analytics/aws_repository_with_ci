@@ -39,8 +39,8 @@ variable "codecommit_repository_name" {
 }
 
 variable "additional_environment_variables" {
-  type = list(object({}))
-  default = []
+  type = map(string)
+  default = {}
 }
 
 variable "ecr_repository_camel_case_name" {
