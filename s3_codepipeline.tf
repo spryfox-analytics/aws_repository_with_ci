@@ -12,17 +12,41 @@ resource "aws_s3_bucket" "codepipeline_artifact_store" {
   }
 }
 
-resource "aws_s3_bucket_acl" "codepipeline_artifact_store_acl" {
+resource "aws_s3_bucket_cors_configuration" "codepipeline_artifact_store_cors" {
+  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
   bucket = aws_s3_bucket.codepipeline_artifact_store.id
-  acl    = var.enable_public_read_for_codepipeline_artifact_store ? "public-read" : "private"
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+resource "aws_s3_bucket_acl" "codepipeline_artifact_store_acl" {
+  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
+  bucket = aws_s3_bucket.codepipeline_artifact_store.id
+  acl    = "public-read"
+  depends_on = [aws_s3_bucket_ownership_controls.codepipeline_artifact_store_ownership]
 }
 
 resource "aws_s3_bucket_ownership_controls" "codepipeline_artifact_store_ownership" {
+  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
   bucket = aws_s3_bucket.codepipeline_artifact_store.id
-
   rule {
-    object_ownership = var.enable_public_read_for_codepipeline_artifact_store ? "ObjectWriter" : "BucketOwnerEnforced"
+    object_ownership = "BucketOwnerPreferred"
   }
+  depends_on = [aws_s3_bucket_public_access_block.codepipeline_artifact_store_public_access]
+}
+
+resource "aws_s3_bucket_public_access_block" "codepipeline_artifact_store_public_access" {
+  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
+  bucket = aws_s3_bucket.codepipeline_artifact_store.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
 }
 
 resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
@@ -48,4 +72,27 @@ data "aws_iam_policy_document" "allow_access_from_another_account" {
       "${aws_s3_bucket.codepipeline_artifact_store.arn}/*"
     ]
   }
+}
+
+resource "aws_s3_bucket_policy" "allow_public_read" {
+  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
+  bucket = aws_s3_bucket.codepipeline_artifact_store.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "PublicReadGetObject"
+        Principal = "*"
+        Action = [
+          "s3:GetObject",
+        ]
+        Effect   = "Allow"
+        Resource = [
+          aws_s3_bucket.codepipeline_artifact_store.arn,
+          "${aws_s3_bucket.codepipeline_artifact_store.arn}/*"
+        ]
+      },
+    ]
+  })
+  depends_on = [aws_s3_bucket_public_access_block.codepipeline_artifact_store_public_access]
 }
