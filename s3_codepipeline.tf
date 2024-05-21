@@ -12,6 +12,11 @@ resource "aws_s3_bucket" "codepipeline_artifact_store" {
   }
 }
 
+resource "aws_s3_bucket_acl" "codepipeline_artifact_store_acl" {
+  bucket = aws_s3_bucket.codepipeline_artifact_store.id
+  acl    = var.enable_public_read_for_codepipeline_artifact_store ? "public-read" : "private"
+}
+
 resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
   bucket = aws_s3_bucket.codepipeline_artifact_store.id
   policy = data.aws_iam_policy_document.allow_access_from_another_account.json
@@ -32,7 +37,7 @@ data "aws_iam_policy_document" "allow_access_from_another_account" {
 
     resources = [
       aws_s3_bucket.codepipeline_artifact_store.arn,
-      "${aws_s3_bucket.codepipeline_artifact_store.arn}/*",
+      "${aws_s3_bucket.codepipeline_artifact_store.arn}/*"
     ]
   }
 }
