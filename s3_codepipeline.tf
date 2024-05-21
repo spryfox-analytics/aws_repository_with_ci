@@ -17,6 +17,14 @@ resource "aws_s3_bucket_acl" "codepipeline_artifact_store_acl" {
   acl    = var.enable_public_read_for_codepipeline_artifact_store ? "public-read" : "private"
 }
 
+resource "aws_s3_bucket_ownership_controls" "codepipeline_artifact_store_ownership" {
+  bucket = aws_s3_bucket.codepipeline_artifact_store.id
+
+  rule {
+    object_ownership = var.enable_public_read_for_codepipeline_artifact_store ? "ObjectWriter" : "BucketOwnerEnforced"
+  }
+}
+
 resource "aws_s3_bucket_policy" "allow_access_from_another_account" {
   bucket = aws_s3_bucket.codepipeline_artifact_store.id
   policy = data.aws_iam_policy_document.allow_access_from_another_account.json
