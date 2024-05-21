@@ -35,6 +35,10 @@ resource "aws_codebuild_project" "this" {
       value = data.aws_caller_identity.current.account_id
     }
     environment_variable {
+      name  = "CUSTOM_ENVIRONMENT"
+      value = var.custom_environment
+    }
+    environment_variable {
       name  = "ENVIRONMENT_AWS_ACCOUNT_ID"
       value = (try(var.pipeline_actions[each.key].environment, "") == "") ? "" : ((var.pipeline_actions[each.key].environment == "prod") ? var.aws_production_account_number : ((var.pipeline_actions[each.key].environment == "int") ? var.aws_integration_account_number : ((var.pipeline_actions[each.key].environment == "dev") ? var.aws_development_account_number : "")))
     }
