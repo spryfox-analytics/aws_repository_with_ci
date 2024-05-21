@@ -73,26 +73,3 @@ data "aws_iam_policy_document" "allow_access_from_another_account" {
     ]
   }
 }
-
-resource "aws_s3_bucket_policy" "allow_public_read" {
-  count  = var.enable_public_read_for_codepipeline_artifact_store ? 1 : 0
-  bucket = aws_s3_bucket.codepipeline_artifact_store.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid = "PublicReadGetObject"
-        Principal = "*"
-        Action = [
-          "s3:GetObject",
-        ]
-        Effect   = "Allow"
-        Resource = [
-          aws_s3_bucket.codepipeline_artifact_store.arn,
-          "${aws_s3_bucket.codepipeline_artifact_store.arn}/*"
-        ]
-      },
-    ]
-  })
-  depends_on = [aws_s3_bucket_public_access_block.codepipeline_artifact_store_public_access]
-}
