@@ -64,7 +64,8 @@ data "aws_iam_policy_document" "allow_access_from_another_account" {
     actions = [
       "s3:Get*",
       "s3:List*",
-      "s3:PutBucketWebsite*"
+      "s3:PutBucketWebsite*",
+      "s3:DeleteBucketWebsite*"
     ]
 
     resources = [
