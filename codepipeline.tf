@@ -12,16 +12,14 @@ resource "aws_codepipeline" "this" {
     type     = "S3"
   }
 
-  # ── Trigger on every push, any branch ───────────────────────────────
+  # ── webhook trigger on every branch ────────────────────────────────
   trigger {
     provider_type = "CodeStarSourceConnection"
     git_configuration {
       source_action_name = "Source"
-      # no 'branches' filter → every branch fires
       push {
         branches {
-          include = ["*"]
-          exclude = []
+          includes = ["*"]              # every branch
         }
       }
     }
@@ -35,13 +33,13 @@ resource "aws_codepipeline" "this" {
       owner      = "AWS"
       provider   = "CodeStarSourceConnection"
       version    = "1"
-      namespace  = "SourceVariables"       # fixed namespace for output vars
+      namespace  = "SourceVariables"
 
       configuration = {
-        ConnectionArn     = aws_codestarconnections_connection.gitlab.arn
-        FullRepositoryId  = var.gitlab_repository_path
-        BranchName        = "main"  # used on manual runs
-        DetectChanges     = true                    # enable webhook
+        ConnectionArn    = aws_codestarconnections_connection.gitlab.arn
+        FullRepositoryId = var.gitlab_repository_path
+        BranchName       = "main"  # fallback for manual runs
+        DetectChanges    = true                     # enable webhook
       }
 
       output_artifacts = ["SourceArtifact"]
@@ -55,20 +53,22 @@ resource "aws_codepipeline" "this" {
     dynamic "action" {
       for_each = var.pipeline_actions
       content {
-        name            = action.value.name
-        category        = action.value.category
-        provider        = action.value.provider
-        owner           = "AWS"
-        version         = "1"
+        name             = action.value.name
+        category         = action.value.category
+        provider         = action.value.provider
+        owner            = "AWS"
+        version          = "1"
         input_artifacts  = action.value.input_artifacts
         output_artifacts = action.value.output_artifacts
-        run_order       = action.key + 1
+        run_order        = action.key + 1
 
-        # ── Launch your CodeBuild project, and override its env vars ──
         configuration = merge(
-          { ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].name },
           {
-            EnvironmentVariablesOverride = jsonencode([
+            ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].name
+          },
+          {
+            # ← CORRECT KEY for CodeBuild env vars
+            EnvironmentVariables = jsonencode([
               {
                 name  = "TRIGGER_BRANCH"
                 value = "#{SourceVariables.BranchName}"
