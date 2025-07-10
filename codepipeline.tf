@@ -1,9 +1,23 @@
 locals {
-  codepipeline_name = "${aws_codecommit_repository.this.repository_name}-codepipeline"
+  # Build a one-element map of the repo's default branch
+  default_branch_map = {
+    for b in [aws_codecommit_repository.this.default_branch] : b => b
+  }
+
+  # Build a map of exactly the branches in var.trigger_branches
+  selected_branch_map = {
+    for b in var.trigger_branches : b => b
+  }
+
+  # Pick one or the other
+  pipeline_branches = var.trigger_branches == ["all"]
+    ? local.default_branch_map
+    : local.selected_branch_map
 }
 
 resource "aws_codepipeline" "this" {
-  name     = local.codepipeline_name
+  for_each = local.pipeline_branches
+  name     = "${aws_codecommit_repository.this.repository_name}-${each.key}-codepipeline"
   role_arn = aws_iam_role.codepipeline.arn
   artifact_store {
     location = aws_s3_bucket.codepipeline_artifact_store.bucket
@@ -16,15 +30,13 @@ resource "aws_codepipeline" "this" {
       category = "Source"
       owner    = "AWS"
       provider = "CodeCommit"
+      version  = "1"
       configuration = {
         RepositoryName = aws_codecommit_repository.this.repository_name
-        BranchName     = "main"
-        # PollForSourceChanges = false
+        BranchName     = each.key  # per-pipeline branch
       }
-      input_artifacts  = []
       output_artifacts = ["SourceArtifact"]
       run_order        = 1
-      version          = "1"
     }
   }
   stage {
@@ -32,24 +44,35 @@ resource "aws_codepipeline" "this" {
     dynamic "action" {
       for_each = var.pipeline_actions
       content {
-        name             = action.value.name
-        category         = action.value.category
-        provider         = action.value.provider
-        input_artifacts  = action.value.input_artifacts
+        name            = action.value.name
+        category        = action.value.category
+        provider        = action.value.provider
+        owner           = "AWS"
+        version         = "1"
+        run_order       = action.key + 1
+        input_artifacts = action.value.input_artifacts
         output_artifacts = action.value.output_artifacts
-        owner            = "AWS"
-        version          = "1"
-        run_order        = action.key + 1
-        configuration = try(action.value.codebuild_project_index, "") == "" ? {} : {
-          ProjectName = [for index, codebuild_project in aws_codebuild_project.this : codebuild_project.arn][action.value.codebuild_project_index]
-        }
+        configuration = merge(
+          try(action.value.codebuild_project_index, "") == "" ? {} : {
+            ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].arn
+          },
+          {
+            EnvironmentVariablesOverride = jsonencode([
+              {
+                name  = "TRIGGER_BRANCH"
+                value = each.key
+                type  = "PLAINTEXT"
+              }
+            ])
+          }
+        )
       }
     }
   }
   tags = {
     Application = var.application
     Customer    = var.customer
-    Name        = local.codepipeline_name
+    Name        = each.value
     Project     = var.project
   }
 }

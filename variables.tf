@@ -52,6 +52,12 @@ variable "enable_public_read_for_codepipeline_artifact_store" {
   type = bool
 }
 
+variable "trigger_branches" {
+  description = "List of CodeCommit branches to trigger builds. Use [\"all\"] for all branches (default)."
+  type        = list(string)
+  default     = ["all"]
+}
+
 variable "pipeline_actions" {
   default = [
     {
