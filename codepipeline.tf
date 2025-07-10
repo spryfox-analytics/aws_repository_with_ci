@@ -1,11 +1,10 @@
 locals {
-  # Map of exactly one branch if ["all"], else map of the list they supplied
-  pipeline_branches = var.trigger_branches == ["all"] ? { for b in [var.default_branch_name] : b => b } : { for b in var.trigger_branches : b => b }
+  codepipeline_name = "${aws_codecommit_repository.this.repository_name}-codepipeline"
 }
 
 resource "aws_codepipeline" "this" {
-  for_each = local.pipeline_branches
-  name     = "${aws_codecommit_repository.this.repository_name}-${each.key}-codepipeline"
+  name     = local.codepipeline_name
+  pipeline_type = "V2"
   role_arn = aws_iam_role.codepipeline.arn
   artifact_store {
     location = aws_s3_bucket.codepipeline_artifact_store.bucket
@@ -21,7 +20,7 @@ resource "aws_codepipeline" "this" {
       version  = "1"
       configuration = {
         RepositoryName = aws_codecommit_repository.this.repository_name
-        BranchName     = each.key  # per-pipeline branch
+        BranchName     = var.default_branch_name
       }
       output_artifacts = ["SourceArtifact"]
       run_order        = 1
@@ -40,27 +39,16 @@ resource "aws_codepipeline" "this" {
         run_order       = action.key + 1
         input_artifacts = action.value.input_artifacts
         output_artifacts = action.value.output_artifacts
-        configuration = merge(
-          try(action.value.codebuild_project_index, "") == "" ? {} : {
-            ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].arn
-          },
-          {
-            EnvironmentVariablesOverride = jsonencode([
-              {
-                name  = "TRIGGER_BRANCH"
-                value = each.key
-                type  = "PLAINTEXT"
-              }
-            ])
-          }
-        )
+        configuration = try(action.value.codebuild_project_index, "") == "" ? {} : {
+          ProjectName = [for index, codebuild_project in aws_codebuild_project.this : codebuild_project.arn][action.value.codebuild_project_index]
+        }
       }
     }
   }
   tags = {
     Application = var.application
     Customer    = var.customer
-    Name        = each.value
+    Name        = local.codepipeline_name
     Project     = var.project
   }
 }

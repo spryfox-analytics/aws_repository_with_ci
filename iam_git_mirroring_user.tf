@@ -2,7 +2,6 @@ locals {
   codecommit_git_mirroring_user_policy_name   = "${var.codecommit_repository_camel_case_name}AccessPolicy"
   codecommit_git_user_access_credentials_name = "${var.codecommit_repository_name}-git-user-access-credentials"
   codecommit_git_user_name                    = "${var.codecommit_repository_name}-git-user"
-  codecommit_git_user_policy_name             = "${var.codecommit_repository_name}-git-user-policy"
 }
 
 resource "aws_iam_user" "codecommit_git_user" {
