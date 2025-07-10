@@ -19,43 +19,45 @@ resource "aws_codebuild_project" "this" {
     type                        = "LINUX_CONTAINER"
     privileged_mode             = true
     image_pull_credentials_type = "CODEBUILD"
-    environment_variable {
-      name  = "AWS_DEFAULT_REGION"
-      value = var.aws_region
-    }
-    environment_variable {
-      name  = "CODE_ARTIFACT_DOMAIN"
-      value = aws_codeartifact_repository.this.domain
-    }
-    environment_variable {
-      name  = "CODE_ARTIFACT_REPOSITORY"
-      value = aws_codeartifact_repository.this.repository
-    }
-    environment_variable {
-      name  = "CURRENT_AWS_ACCOUNT_ID"
-      value = data.aws_caller_identity.current.account_id
-    }
-    environment_variable {
-      name  = "ENVIRONMENT_AWS_ACCOUNT_ID"
-      value = (try(var.pipeline_actions[each.key].environment, "") == "") ? "" : ((var.pipeline_actions[each.key].environment == "prod") ? var.aws_production_account_number : ((var.pipeline_actions[each.key].environment == "int") ? var.aws_integration_account_number : ((var.pipeline_actions[each.key].environment == "dev") ? var.aws_development_account_number : "")))
-    }
-    environment_variable {
-      name  = "ECR_REPOSITORY_NAME"
-      value = aws_ecr_repository.this.name
-    }
-    environment_variable {
-      name  = "ENVIRONMENT"
-      value = try(var.pipeline_actions[each.key].environment, "") == "" ? "" : var.pipeline_actions[each.key].environment
-    }
-    environment_variable {
-      name  = "S3_CODEPIPELINE_ARTIFACT_STORE_URL"
-      value = "s3://${aws_s3_bucket.codepipeline_artifact_store.bucket}"
-    }
+
     dynamic "environment_variable" {
-      for_each = var.additional_environment_variables
+      for_each = concat(
+        [
+          // always‐present vars
+          { name = "AWS_DEFAULT_REGION",               value = var.aws_region },
+          { name = "CODE_ARTIFACT_DOMAIN",             value = aws_codeartifact_repository.this.domain },
+          { name = "CODE_ARTIFACT_REPOSITORY",         value = aws_codeartifact_repository.this.repository },
+          { name = "CURRENT_AWS_ACCOUNT_ID",           value = data.aws_caller_identity.current.account_id },
+          { name = "ECR_REPOSITORY_NAME",              value = aws_ecr_repository.this.name },
+          { name = "S3_CODEPIPELINE_ARTIFACT_STORE_URL", value = "s3://${aws_s3_bucket.codepipeline_artifact_store.bucket}" }
+        ],
+        // optional ENVIRONMENT vars (only when environment is non-null/non-empty)
+        var.pipeline_actions[each.key].environment != null && var.pipeline_actions[each.key].environment != ""
+          ? [
+              {
+                name  = "ENVIRONMENT",
+                value = var.pipeline_actions[each.key].environment
+              },
+              {
+                name  = "ENVIRONMENT_AWS_ACCOUNT_ID",
+                value = lookup({
+                  dev  = var.aws_development_account_number
+                  int  = var.aws_integration_account_number
+                  prod = var.aws_production_account_number
+                }, var.pipeline_actions[each.key].environment, "")
+              }
+            ]
+          : [],
+        // extra user‐supplied vars
+        [for key, val in var.additional_environment_variables : {
+          name  = key
+          value = val
+        }]
+      )
+
       content {
-        name  = environment_variable.key
-        value = environment_variable.value
+        name  = environment_variable.value.name
+        value = environment_variable.value.value
       }
     }
   }
