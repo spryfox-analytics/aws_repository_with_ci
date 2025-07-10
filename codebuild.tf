@@ -1,11 +1,7 @@
-locals {
-  repository_name = replace(var.gitlab_repository_path, "/", "-")
-}
-
 resource "aws_codebuild_project" "this" {
   for_each      = { for index, action in var.pipeline_actions : index => action if action.codebuild_project_index != "" }
 
-  name          = "${local.repository_name}-${var.pipeline_actions[each.key].name}-codebuild-project"
+  name          = "${replace(var.gitlab_repository_path, "/", "-")}-${var.pipeline_actions[each.key].name}-codebuild-project"
   service_role  = aws_iam_role.codebuild.arn
   badge_enabled = false
   build_timeout = 60
@@ -14,7 +10,7 @@ resource "aws_codebuild_project" "this" {
   artifacts {
     type                  = "CODEPIPELINE"
     packaging             = "NONE"
-    name                  = "${local.repository_name}-${var.pipeline_actions[each.key].name}"
+    name                  = "${replace(var.gitlab_repository_path, "/", "-")}-${var.pipeline_actions[each.key].name}"
     override_artifact_name = false
   }
   environment {
@@ -82,7 +78,7 @@ resource "aws_codebuild_project" "this" {
   tags = {
     Application = var.application
     Customer    = var.customer
-    Name        = "${local.repository_name}-${var.pipeline_actions[each.key].name}-codebuild"
+    Name        = "${replace(var.gitlab_repository_path, "/", "-")}-${var.pipeline_actions[each.key].name}-codebuild"
     Project     = var.project
   }
 }

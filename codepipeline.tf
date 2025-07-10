@@ -1,6 +1,5 @@
 locals {
-  repository_name   = replace(var.gitlab_repository_path, "/", "-")
-  codepipeline_name = "${local.repository_name}-codepipeline"
+  codepipeline_name = "${replace(var.gitlab_repository_path, "/", "-")}-codepipeline"
 }
 
 resource "aws_codepipeline" "this" {

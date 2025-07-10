@@ -1,6 +1,5 @@
 locals {
-  repository_name              = replace(var.gitlab_repository_path, "/", "-")
-  codeartifact_repository_name = local.repository_name
+  codeartifact_repository_name = replace(var.gitlab_repository_path, "/", "-")
 }
 
 resource "aws_codeartifact_repository" "this" {

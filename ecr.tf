@@ -1,6 +1,5 @@
 locals {
-  repository_name      = replace(var.gitlab_repository_path, "/", "-")
-  ecr_repository_name = local.repository_name
+  ecr_repository_name      = replace(var.gitlab_repository_path, "/", "-")
 }
 
 resource "aws_ecr_repository" "this" {
