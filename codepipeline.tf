@@ -19,7 +19,7 @@ resource "aws_codepipeline" "this" {
       source_action_name = "Source"
       push {
         branches {
-          includes = ["*"]              # every branch
+          includes = ["**"]              # every branch
         }
       }
     }
