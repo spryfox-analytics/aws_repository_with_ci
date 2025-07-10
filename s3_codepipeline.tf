@@ -1,5 +1,5 @@
 locals {
-  codepipeline_s3_bucket_name   = "${replace(var.gitlab_repository_path, "/", "-")}-codepl-artifact-store-${data.aws_caller_identity.current.account_id}"
+  codepipeline_s3_bucket_name   = "${replace(var.gitlab_repository_path, "/", "-")}-cdppln-${data.aws_caller_identity.current.account_id}"
 }
 
 resource "aws_s3_bucket" "codepipeline_artifact_store" {
