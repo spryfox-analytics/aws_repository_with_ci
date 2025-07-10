@@ -30,12 +30,14 @@ output "codecommit_repository_name" {
   value = aws_codecommit_repository.this.repository_name
 }
 
-output "codepipeline_arn" {
-  value = aws_codepipeline.this.arn
+output "codepipeline_arns" {
+  description = "Map of CodePipeline ARNs, keyed by branch name"
+  value       = { for branch, pipeline in aws_codepipeline.this : branch => pipeline.arn }
 }
 
-output "codepipeline_name" {
-  value = aws_codepipeline.this.name
+output "codepipeline_names" {
+  description = "Map of CodePipeline names, keyed by branch name"
+  value       = { for branch, pipeline in aws_codepipeline.this : branch => pipeline.name }
 }
 
 output "codepipeline_role_arn" {
