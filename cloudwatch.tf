@@ -2,21 +2,23 @@ resource "aws_cloudwatch_event_rule" "trigger" {
   for_each = aws_codepipeline.this
   name = "${each.value.name}-trigger"
   // if ["all"], don't filter on branch; otherwise only fire on that branch
-  event_pattern = var.trigger_branches[0] == "all"
-    ? jsonencode({
+  event_pattern = var.trigger_branches[0] == "all" ? jsonencode(
+    {
         source      = ["aws.codecommit"]
         "detail-type" = ["CodeCommit Repository State Change"]
         resources   = [aws_codecommit_repository.this.arn]
-      })
-    : jsonencode({
-        source      = ["aws.codecommit"]
-        "detail-type" = ["CodeCommit Repository State Change"]
-        resources   = [aws_codecommit_repository.this.arn]
-        detail = {
-          referenceType = ["branch"]
-          referenceName = [each.key]
-        }
-      })
+    }
+  ) : jsonencode(
+    {
+      source      = ["aws.codecommit"]
+      "detail-type" = ["CodeCommit Repository State Change"]
+      resources   = [aws_codecommit_repository.this.arn]
+      detail = {
+        referenceType = ["branch"]
+        referenceName = [each.key]
+      }
+    }
+  )
 }
 
 resource "aws_cloudwatch_event_target" "start_pipeline" {

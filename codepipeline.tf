@@ -3,16 +3,12 @@ locals {
   default_branch_map = {
     for b in [aws_codecommit_repository.this.default_branch] : b => b
   }
-
   # Build a map of exactly the branches in var.trigger_branches
   selected_branch_map = {
     for b in var.trigger_branches : b => b
   }
-
   # Pick one or the other
-  pipeline_branches = var.trigger_branches == ["all"]
-    ? local.default_branch_map
-    : local.selected_branch_map
+  pipeline_branches = var.trigger_branches == ["all"] ? local.default_branch_map : local.selected_branch_map
 }
 
 resource "aws_codepipeline" "this" {
