@@ -1,22 +1,18 @@
 locals {
-  codebuild_role_name              = "${var.codecommit_repository_camel_case_name}CodebuildRole"
-  codebuild_policy_name            = "${var.codecommit_repository_camel_case_name}CodebuildPolicy"
+  codebuild_role_name       = "${var.repository_camel_case_name}CodebuildRole"
+  codebuild_policy_name     = "${var.repository_camel_case_name}CodebuildPolicy"
   tool_account_codebuild_role_name = "ToolAccountCodeBuildRole"
 }
 
 resource "aws_iam_role" "codebuild" {
   name = local.codebuild_role_name
   assume_role_policy = jsonencode({
-    Version : "2012-10-17",
-    Statement : [
-      {
-        Effect : "Allow",
-        Principal : {
-          Service : "codebuild.amazonaws.com"
-        },
-        Action : "sts:AssumeRole"
-      }
-    ]
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "codebuild.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
   })
   tags = {
     Application = var.application
@@ -30,64 +26,53 @@ resource "aws_iam_role_policy" "codebuild" {
   name = local.codebuild_policy_name
   role = aws_iam_role.codebuild.name
   policy = jsonencode({
-    Version : "2012-10-17",
-    Statement : [
+    Version = "2012-10-17"
+    Statement = [
       {
-        Effect : "Allow",
-        Resource : [
-          "*"
-        ],
-        Action : [
+        Effect   = "Allow"
+        Action   = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
+          "logs:PutLogEvents"]
+        Resource = ["*"]
       },
       {
-        Effect : "Allow",
-        Action : [
-          "s3:*"
-        ],
-        Resource : [
-          "${aws_s3_bucket.codepipeline_artifact_store.arn}*"
-        ]
+        Effect   = "Allow"
+        Action   = ["s3:*"]
+        Resource = ["${aws_s3_bucket.codepipeline_artifact_store.arn}*"]
       },
       {
-        Effect : "Allow",
-        Action : [
+        Effect   = "Allow"
+        Action   = [
           "codeartifact:GetAuthorizationToken",
           "codeartifact:GetRepositoryEndpoint",
           "codeartifact:ReadFromRepository",
           "codeartifact:PublishPackageVersion",
           "codeartifact:PutPackageMetadata"
-        ],
-        Resource : [
-          "*"
         ]
+        Resource = ["*"]
       },
       {
-        Effect : "Allow",
-        Action : ["sts:GetServiceBearerToken"],
-        Resource : ["*"],
-        Condition : {
-          StringEquals : { "sts:AWSServiceName" : "codeartifact.amazonaws.com" }
-        }
+        Effect    = "Allow"
+        Action    = ["sts:GetServiceBearerToken"]
+        Resource  = ["*"]
+        Condition = { StringEquals = { "sts:AWSServiceName" = "codeartifact.amazonaws.com" } }
       },
       {
-        "Effect" : "Allow",
-        "Action" : [
+        Effect   = "Allow"
+        Action   = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:CompleteLayerUpload",
           "ecr:GetAuthorizationToken",
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
           "ecr:UploadLayerPart"
-        ],
-        "Resource" : "*"
+        ]
+        Resource = ["*"]
       },
       {
-        Effect = "Allow",
-        Action = "sts:AssumeRole",
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
         Resource = [
           "arn:aws:iam::${var.aws_integration_account_number}:role/${local.tool_account_codebuild_role_name}",
           "arn:aws:iam::${var.aws_production_account_number}:role/${local.tool_account_codebuild_role_name}"

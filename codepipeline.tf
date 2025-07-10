@@ -1,5 +1,6 @@
 locals {
-  codepipeline_name = "${aws_codecommit_repository.this.repository_name}-codepipeline"
+  repository_name   = replace(var.gitlab_repository_path, "/", "-")
+  codepipeline_name = "${local.repository_name}-codepipeline"
 }
 
 resource "aws_codepipeline" "this" {
@@ -16,11 +17,13 @@ resource "aws_codepipeline" "this" {
       name     = "Source"
       category = "Source"
       owner    = "AWS"
-      provider = "CodeCommit"
+      provider = "CodeStarSourceConnection"
       version  = "1"
       configuration = {
-        RepositoryName = aws_codecommit_repository.this.repository_name
-        BranchName     = var.default_branch_name
+        ConnectionArn     = aws_codestarconnections_connection.gitlab.arn
+        FullRepositoryId  = var.gitlab_repository_path
+        BranchName        = "main"
+        DetectChanges     = true
       }
       output_artifacts = ["SourceArtifact"]
       run_order        = 1
@@ -36,12 +39,10 @@ resource "aws_codepipeline" "this" {
         provider        = action.value.provider
         owner           = "AWS"
         version         = "1"
-        run_order       = action.key + 1
         input_artifacts = action.value.input_artifacts
         output_artifacts = action.value.output_artifacts
-        configuration = try(action.value.codebuild_project_index, "") == "" ? {} : {
-          ProjectName = [for index, codebuild_project in aws_codebuild_project.this : codebuild_project.arn][action.value.codebuild_project_index]
-        }
+        run_order       = action.key + 1
+        configuration = try(action.value.codebuild_project_index, "") == "" ? {} : { ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].arn }
       }
     }
   }

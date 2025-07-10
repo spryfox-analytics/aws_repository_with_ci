@@ -1,23 +1,28 @@
+locals {
+  repository_name = replace(var.gitlab_repository_path, "/", "-")
+}
+
 resource "aws_codebuild_project" "this" {
-  for_each       = { for index, codebuild_project_index in tomap({ for index, action in var.pipeline_actions : index => try(action.codebuild_project_index, "") }) : index => codebuild_project_index if codebuild_project_index != "" }
-  badge_enabled  = false
-  build_timeout  = 60
-  name           = "${aws_codecommit_repository.this.repository_name}-${var.pipeline_actions[each.key].name}-codebuild-project"
+  for_each      = { for index, action in var.pipeline_actions : index => action if action.codebuild_project_index != "" }
+
+  name          = "${local.repository_name}-${var.pipeline_actions[each.key].name}-codebuild-project"
+  service_role  = aws_iam_role.codebuild.arn
+  badge_enabled = false
+  build_timeout = 60
   queued_timeout = 480
-  service_role   = aws_iam_role.codebuild.arn
+
   artifacts {
-    encryption_disabled    = false
-    name                   = "${aws_codecommit_repository.this.repository_name}-${var.pipeline_actions[each.key].name}"
+    type                  = "CODEPIPELINE"
+    packaging             = "NONE"
+    name                  = "${local.repository_name}-${var.pipeline_actions[each.key].name}"
     override_artifact_name = false
-    packaging              = "NONE"
-    type                   = "CODEPIPELINE"
   }
   environment {
     compute_type                = "BUILD_GENERAL1_SMALL"
     image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
-    image_pull_credentials_type = "CODEBUILD"
-    privileged_mode             = true
     type                        = "LINUX_CONTAINER"
+    privileged_mode             = true
+    image_pull_credentials_type = "CODEBUILD"
     environment_variable {
       name  = "AWS_DEFAULT_REGION"
       value = var.aws_region
@@ -58,26 +63,26 @@ resource "aws_codebuild_project" "this" {
       }
     }
   }
+  source {
+    type              = "CODEPIPELINE"
+    buildspec         = var.pipeline_actions[each.key].buildspec
+    git_clone_depth   = 0
+    report_build_status = false
+    insecure_ssl      = false
+  }
   logs_config {
     cloudwatch_logs {
       status = "ENABLED"
     }
     s3_logs {
-      encryption_disabled = false
-      status              = "DISABLED"
+      status = "DISABLED"
     }
   }
-  source {
-    buildspec           = var.pipeline_actions[each.key].buildspec
-    git_clone_depth     = 0
-    insecure_ssl        = false
-    report_build_status = false
-    type                = "CODEPIPELINE"
-  }
+
   tags = {
     Application = var.application
     Customer    = var.customer
-    Name        = "${aws_codecommit_repository.this.repository_name}-${var.pipeline_actions[each.key].name}-codebuild-project"
+    Name        = "${local.repository_name}-${var.pipeline_actions[each.key].name}-codebuild"
     Project     = var.project
   }
 }

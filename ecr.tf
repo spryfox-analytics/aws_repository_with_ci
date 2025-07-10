@@ -1,5 +1,6 @@
 locals {
-  ecr_repository_name = aws_codecommit_repository.this.repository_name
+  repository_name      = replace(var.gitlab_repository_path, "/", "-")
+  ecr_repository_name = local.repository_name
 }
 
 resource "aws_ecr_repository" "this" {
