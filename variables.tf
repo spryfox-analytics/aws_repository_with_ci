@@ -58,6 +58,12 @@ variable "trigger_branches" {
   default     = ["all"]
 }
 
+variable "default_branch_name" {
+  description = "The name of the CodeCommit repository’s default branch."
+  type        = string
+  default     = "main"
+}
+
 variable "pipeline_actions" {
   default = [
     {
