@@ -1,86 +1,121 @@
+terraform {
+  required_providers {
+    aws   = { source = "hashicorp/aws" }
+    awscc = { source = "hashicorp/awscc" }
+  }
+}
+
 locals {
   codepipeline_name = "${replace(var.gitlab_repository_path, "/", "-")}-codepipeline"
 }
 
-resource "aws_codepipeline" "this" {
+resource "awscc_codepipeline_pipeline" "this" {
   name          = local.codepipeline_name
-  pipeline_type = "V2"
   role_arn      = aws_iam_role.codepipeline.arn
+  pipeline_type = "V2"
 
-  artifact_store {
-    location = aws_s3_bucket.codepipeline_artifact_store.bucket
-    type     = "S3"
-  }
+  artifact_stores = [
+    {
+      region = var.aws_region
+      artifact_store = {
+        type     = "S3"
+        location = aws_s3_bucket.codepipeline_artifact_store.bucket
+      }
+    }
+  ]
 
-  trigger {
+  triggers = [
+  {
     provider_type = "CodeStarSourceConnection"
-    git_configuration {
+    git_configuration = {
       source_action_name = "Source"
-      push {
-        branches {
-          includes = ["*"]
-        }
-      }
-    }
-  }
 
-  stage {
-    name = "Source"
-    action {
-      name       = "Source"
-      category   = "Source"
-      owner      = "AWS"
-      provider   = "CodeStarSourceConnection"
-      version    = "1"
-      namespace  = "SourceVariables"
-
-      configuration = {
-        ConnectionArn    = var.gitlab_code_connection_arn
-        FullRepositoryId = var.gitlab_repository_path
-        BranchName       = "main"  # fallback for manual runs
-        DetectChanges    = true
-      }
-
-      output_artifacts = ["SourceArtifact"]
-      run_order        = 1
-    }
-  }
-
-  stage {
-    name = "Deploy"
-
-    dynamic "action" {
-      for_each = var.pipeline_actions
-      content {
-        name             = action.value.name
-        category         = action.value.category
-        provider         = action.value.provider
-        owner            = "AWS"
-        version          = "1"
-        input_artifacts  = action.value.input_artifacts
-        output_artifacts = action.value.output_artifacts
-        run_order        = action.key + 1
-
-        configuration = merge(
-          { ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].name },
-          {
-            EnvironmentVariables = jsonencode([
-              {
-                name  = "TRIGGER_BRANCH"
-                value = "#{SourceVariables.BranchName}"
-                type  = "PLAINTEXT"
-              }
-            ])
+      # Start on ANY branch push
+      push = [
+        {
+          branches = {
+            includes = ["**"],
+            excludes = ["__DUMMY_SINCE_ONE_ENTRY_REQUIRED_HERE__"]
           }
-        )
-      }
+        }
+      ]
+
+      # Also start on any PR opened/updated/closed
+      pull_request = [
+        {
+          branches = {
+            includes = ["**"],
+            excludes = ["__DUMMY_SINCE_ONE_ENTRY_REQUIRED_HERE__"]
+          }
+          # optional, but good to be explicit:
+          events = ["OPEN", "UPDATED", "CLOSED"]
+        }
+      ]
     }
   }
+]
 
-  tags = {
-    Application = var.application
-    Customer    = var.customer
-    Name        = local.codepipeline_name
-    Project     = var.project
-  }
+  stages = [
+    {
+      name    = "Source"
+      actions = [
+        {
+          name           = "Source"
+          action_type_id = {
+            category = "Source"
+            owner    = "AWS"
+            provider = "CodeStarSourceConnection"
+            version  = "1"
+          }
+          output_artifacts = [
+            { name = "SourceArtifact" }
+          ]
+          namespace = "SourceVariables"
+          run_order = 1
+        }
+      ]
+    },
+    {
+      name    = "Deploy"
+      actions = [
+        for idx, act in var.pipeline_actions : {
+          name            = act.name
+          action_type_id  = {
+            category = act.category
+            owner    = "AWS"
+            provider = act.provider
+            version  = "1"
+          }
+          input_artifacts = [
+            for ia in act.input_artifacts : { name = ia }
+          ]
+          output_artifacts = [
+            for oa in act.output_artifacts : { name = oa }
+          ]
+          run_order     = idx + 1
+          configuration = jsonencode(
+            merge(
+              { ProjectName = aws_codebuild_project.this[act.codebuild_project_index].name },
+              {
+                EnvironmentVariables = jsonencode([
+                  {
+                    name  = "TRIGGER_BRANCH"
+                    value = "#{SourceVariables.BranchName}"
+                    type  = "PLAINTEXT"
+                  }
+                ])
+              }
+            )
+          )
+        }
+      ]
+    }
+  ]
+
+  tags = [
+    { key = "Application", value = var.application          },
+    { key = "Customer",    value = var.customer             },
+    { key = "Name",        value = local.codepipeline_name  },
+    { key = "Project",     value = var.project              },
+  ]
 }

@@ -26,12 +26,8 @@ output "ecr_repository_url" {
   value = aws_ecr_repository.this.repository_url
 }
 
-output "codepipeline_arn" {
-  value = aws_codepipeline.this.arn
-}
-
 output "codepipeline_name" {
-  value = aws_codepipeline.this.name
+  value = awscc_codepipeline_pipeline.this.name
 }
 
 output "codepipeline_role_arn" {
