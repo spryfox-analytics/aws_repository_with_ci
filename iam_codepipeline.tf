@@ -1,6 +1,6 @@
 locals {
-  codepipeline_role_name   = "${var.repository_camel_case_name}CodepipelineRole"
-  codepipeline_policy_name = "${var.repository_camel_case_name}CodepipelinePolicy"
+  codepipeline_role_name   = "${local.camel_cased_repository_path}CodepipelineRole"
+  codepipeline_policy_name = "${local.camel_cased_repository_path}CodepipelinePolicy"
 }
 
 resource "aws_iam_role" "codepipeline" {

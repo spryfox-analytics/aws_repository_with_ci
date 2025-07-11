@@ -1,6 +1,6 @@
 locals {
-  codebuild_role_name       = "${var.repository_camel_case_name}CodebuildRole"
-  codebuild_policy_name     = "${var.repository_camel_case_name}CodebuildPolicy"
+  codebuild_role_name       = "${local.camel_cased_repository_path}CodebuildRole"
+  codebuild_policy_name     = "${local.camel_cased_repository_path}CodebuildPolicy"
   tool_account_codebuild_role_name = "ToolAccountCodeBuildRole"
 }
 

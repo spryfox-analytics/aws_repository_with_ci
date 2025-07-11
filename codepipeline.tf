@@ -6,7 +6,7 @@ terraform {
 }
 
 locals {
-  codepipeline_name = "${replace(var.gitlab_repository_path, "/", "-")}-codepipeline"
+  codepipeline_name = "${local.dashed_repository_path}-codepipeline"
 }
 
 resource "awscc_codepipeline_pipeline" "this" {

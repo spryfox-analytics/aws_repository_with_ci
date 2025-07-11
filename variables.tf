@@ -43,19 +43,9 @@ variable "gitlab_repository_path" {
   description = "Full GitLab repo path (e.g. group/subgroup/repo)"
 }
 
-variable "repository_camel_case_name" {
-  type        = string
-  description = "CamelCase repo name for IAM role naming"
-}
-
 variable "codeartifact_domain_name" {
   type        = string
   description = "Domain for AWS CodeArtifact"
-}
-
-variable "ecr_repository_camel_case_name" {
-  type        = string
-  description = "CamelCase name for ECR repository"
 }
 
 variable "enable_public_read_for_codepipeline_artifact_store" {
