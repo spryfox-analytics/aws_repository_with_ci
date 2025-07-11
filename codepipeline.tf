@@ -12,14 +12,13 @@ resource "aws_codepipeline" "this" {
     type     = "S3"
   }
 
-  # ── webhook trigger on every branch ────────────────────────────────
   trigger {
     provider_type = "CodeStarSourceConnection"
     git_configuration {
       source_action_name = "Source"
       push {
         branches {
-          includes = ["**"]              # every branch
+          includes = ["*"]
         }
       }
     }
@@ -36,10 +35,10 @@ resource "aws_codepipeline" "this" {
       namespace  = "SourceVariables"
 
       configuration = {
-        ConnectionArn    = aws_codestarconnections_connection.gitlab.arn
+        ConnectionArn    = var.gitlab_code_connection_arn
         FullRepositoryId = var.gitlab_repository_path
         BranchName       = "main"  # fallback for manual runs
-        DetectChanges    = true                     # enable webhook
+        DetectChanges    = true
       }
 
       output_artifacts = ["SourceArtifact"]
@@ -63,11 +62,8 @@ resource "aws_codepipeline" "this" {
         run_order        = action.key + 1
 
         configuration = merge(
+          { ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].name },
           {
-            ProjectName = aws_codebuild_project.this[action.value.codebuild_project_index].name
-          },
-          {
-            # ← CORRECT KEY for CodeBuild env vars
             EnvironmentVariables = jsonencode([
               {
                 name  = "TRIGGER_BRANCH"

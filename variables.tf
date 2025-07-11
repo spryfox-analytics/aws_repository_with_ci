@@ -33,15 +33,9 @@ variable "aws_production_account_number" {
   description = "Prod account ID"
 }
 
-variable "gitlab_connection_name" {
+variable "gitlab_code_connection_arn" {
+  description = "ARN of an existing AWS CodeStar Connections connection (e.g. GitLab) to use for all pipelines."
   type        = string
-  description = "Name of the AWS CodeStar Connections connection for GitLab"
-}
-
-variable "gitlab_provider_type" {
-  type        = string
-  default     = "GitLab"
-  description = "Provider type: GitLab or GitLabSelfManaged"
 }
 
 variable "gitlab_repository_path" {
