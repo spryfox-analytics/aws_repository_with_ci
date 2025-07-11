@@ -70,10 +70,11 @@ resource "awscc_codepipeline_pipeline" "this" {
           run_order        = 1
           output_artifacts = [{ name = "SourceArtifact" }]
           namespace        = "SourceVariables"
-          configuration = {
-            ConnectionArn     = var.gitlab_code_connection_arn
+          configuration = jsonencode({
+            ConnectionArn    = var.gitlab_code_connection_arn
             FullRepositoryId = var.gitlab_repository_path
-          }
+            BranchName       = "main"
+          })
         }
       ]
     },
