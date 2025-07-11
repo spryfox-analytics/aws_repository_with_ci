@@ -67,11 +67,13 @@ resource "awscc_codepipeline_pipeline" "this" {
             provider = "CodeStarSourceConnection"
             version  = "1"
           }
-          output_artifacts = [
-            { name = "SourceArtifact" }
-          ]
-          namespace = "SourceVariables"
-          run_order = 1
+          run_order        = 1
+          output_artifacts = [{ name = "SourceArtifact" }]
+          namespace        = "SourceVariables"
+          configuration = {
+            ConnectionArn     = var.gitlab_code_connection_arn
+            FullRepositoryId = var.gitlab_repository_path
+          }
         }
       ]
     },
