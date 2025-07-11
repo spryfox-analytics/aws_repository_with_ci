@@ -15,7 +15,7 @@ locals {
         var.gitlab_repository_path,
         "[/\\-_]+",    # match one or more of slash, backslash, dash or underscore
         "-"            # replace them all with a single space
-      )
+      ),
     " ",             # now remove the spaces
     ""
   )
