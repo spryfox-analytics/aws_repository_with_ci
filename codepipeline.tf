@@ -74,6 +74,7 @@ resource "awscc_codepipeline_pipeline" "this" {
             ConnectionArn    = var.gitlab_code_connection_arn
             FullRepositoryId = var.gitlab_repository_path
             BranchName       = "main"
+            OutputArtifactFormat = "CODEBUILD_CLONE_REF"
           })
         }
       ]
