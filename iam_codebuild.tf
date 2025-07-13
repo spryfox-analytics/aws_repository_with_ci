@@ -77,6 +77,11 @@ resource "aws_iam_role_policy" "codebuild" {
           "arn:aws:iam::${var.aws_integration_account_number}:role/${local.tool_account_codebuild_role_name}",
           "arn:aws:iam::${var.aws_production_account_number}:role/${local.tool_account_codebuild_role_name}"
         ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["codestar-connections:UseConnection"]
+        Resource = var.gitlab_code_connection_arn
       }
     ]
   })
