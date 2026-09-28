@@ -88,7 +88,9 @@ variable "actions" {
                         ENVIRONMENT and ENVIRONMENT_AWS_ACCOUNT_ID.
     - input_artifacts:  defaults to ["SourceArtifact"] for CodeBuild actions and to none otherwise.
     - configuration:    action configuration for non-CodeBuild actions, e.g. of a manual approval.
-    - codebuild:        settings of the CodeBuild project; ignored for other providers.
+    - codebuild:        settings of the CodeBuild project; ignored for other providers. The
+                        default image is Amazon Linux 2023 standard:5.0, which offers the
+                        runtimes Python 3.9 to 3.14 and Node.js 18 to 26.
   EOT
   type = list(object({
     name             = string
@@ -101,7 +103,7 @@ variable "actions" {
     configuration    = optional(map(string), {})
     codebuild = optional(object({
       compute_type          = optional(string, "BUILD_GENERAL1_SMALL")
-      image                 = optional(string, "aws/codebuild/amazonlinux2-x86_64-standard:4.0")
+      image                 = optional(string, "aws/codebuild/amazonlinux-x86_64-standard:5.0")
       privileged_mode       = optional(bool, true)
       build_timeout         = optional(number, 60)
       queued_timeout        = optional(number, 480)

@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.4.0
+
+### Changed
+
+- The default CodeBuild image is `aws/codebuild/amazonlinux-x86_64-standard:5.0` (Amazon Linux 2023)
+  instead of `aws/codebuild/amazonlinux2-x86_64-standard:4.0`. Amazon Linux 2 has reached its end of
+  life and the 4.0 image is no longer among the supported ones; its runtimes decay, for example
+  Node.js no longer starts in it for lack of a recent glibc. 5.0 offers Python 3.9 to 3.14 and
+  Node.js 18 to 26.
+
+### Upgrading
+
+Builds run on Amazon Linux 2023. Buildspecs that name a runtime version need one that 5.0 offers;
+projects that need the old image can keep it with `actions[*].codebuild.image`.
+
 ## v3.3.0
 
 ### Changed
