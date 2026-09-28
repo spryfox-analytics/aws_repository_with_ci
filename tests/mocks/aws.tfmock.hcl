@@ -43,3 +43,17 @@ mock_resource "aws_codepipeline" {
 mock_resource "aws_s3_access_point" {
   defaults = { arn = "arn:aws:s3:eu-west-1:111111111111:accesspoint/mock" }
 }
+
+mock_data "aws_codestarconnections_connection" {
+  defaults = {
+    name              = "mock-connection"
+    connection_status = "AVAILABLE"
+  }
+}
+
+mock_resource "aws_codeconnections_connection" {
+  defaults = {
+    arn               = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+    connection_status = "PENDING"
+  }
+}

@@ -28,14 +28,14 @@ account hosting it.
 
 ```hcl
 module "azure_devops_connection" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.0.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.1.0"
 
   name          = "azure-devops"
   provider_type = "AzureDevOps"
 }
 
 module "my_service" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.0.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.1.0"
 
   name = "my-service"
   source_repository = {
@@ -69,6 +69,28 @@ with the provider is completed once by hand:
 
 The connection then turns `AVAILABLE`, which the `status` output reflects. One connection serves every
 repository the provider account can see.
+
+A pipeline registers the webhook that starts it on Git events only when it is created, and only
+while its connection is `AVAILABLE`. A pipeline created earlier could still be started by hand but
+would never react to a push. The module therefore refuses to create or change a pipeline whose
+connection is not `AVAILABLE`, which makes the order of a new setup:
+
+1. `terraform apply` creates the connection and everything else, and fails at the pipeline with a
+   message pointing to the console.
+2. Activate the connection as described above.
+3. `terraform apply` again creates the pipeline, with its webhook.
+
+The first apply is not blocked before it gets that far: while the connection does not exist yet
+its status cannot be checked, so only the pipeline itself is held back.
+
+A pipeline that was created while its connection was still `PENDING`, for example with an earlier
+version of this module, has no webhook. Recreate it once the connection is `AVAILABLE`:
+
+```sh
+terraform apply -replace='module.my_service.aws_codepipeline.this'
+```
+
+A newly created pipeline starts one execution on its own.
 
 `source_repository.repository_id` is the repository the way the provider names it, for example
 `group/subgroup/repo` on GitLab. The format differs between providers and is case sensitive; the

@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.1.0
+
+### Changed
+
+- A pipeline is only created or changed while its connection is `AVAILABLE`. A pipeline registers
+  the webhook that starts it on Git events only when it is created against an available
+  connection; created against a `PENDING` one it can be started by hand but never reacts to a push,
+  and nothing reports it. The plan or apply now fails instead, with a link to where the connection
+  is activated. A new setup is not dead-locked by this: in its first run the connection is created
+  and only the pipeline is held back, so there is a connection to activate before applying again.
+
+### Upgrading
+
+Nothing to change for pipelines whose connection is `AVAILABLE`. A pipeline created while its
+connection was still `PENDING` has no webhook; recreate it with
+`terraform apply -replace='<module address>.aws_codepipeline.this'`.
+
 ## v3.0.0
 
 A rewrite around a provider-agnostic source. Not backwards compatible with v2.

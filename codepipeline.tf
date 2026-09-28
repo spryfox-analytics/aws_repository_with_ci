@@ -84,4 +84,19 @@ resource "aws_codepipeline" "this" {
   }
 
   tags = merge(local.tags, { Name = local.names.pipeline })
+
+  lifecycle {
+    # When the connection is created in the same run, its ARN is unknown while planning, so this
+    # is only evaluated during apply, after the connection exists. A first run therefore creates
+    # the connection, leaving something to activate, and stops short of the pipeline alone.
+    precondition {
+      condition     = data.aws_codestarconnections_connection.source.connection_status == "AVAILABLE"
+      error_message = <<-EOT
+        The connection ${data.aws_codestarconnections_connection.source.name} is ${data.aws_codestarconnections_connection.source.connection_status}, not AVAILABLE.
+        A pipeline created now would never be started by Git events, so it is held back.
+        Activate the connection in the AWS console, then apply again:
+        https://${local.region}.console.aws.amazon.com/codesuite/settings/connections?region=${local.region}
+      EOT
+    }
+  }
 }

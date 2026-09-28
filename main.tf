@@ -2,6 +2,14 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
+# A pipeline registers the webhook that starts it on Git events only when it is created, and
+# only while its connection is AVAILABLE. Created against a PENDING connection it would build
+# when started by hand but never on a push, without any error. The status is checked here so
+# that such a pipeline is not created in the first place.
+data "aws_codestarconnections_connection" "source" {
+  arn = var.source_repository.connection_arn
+}
+
 locals {
   account_id = data.aws_caller_identity.current.account_id
   region     = data.aws_region.current.region
