@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.2.0
+
+### Changed
+
+- `source_repository.full_clone` defaults to `true`: builds receive a Git clone of the commit again,
+  as in v2. The ZIP that v3.0 and v3.1 used by default does not keep the files' executable bits, so
+  images whose entrypoint is a script from the repository were built fine but failed to start with
+  "Permission denied". `full_clone = false` still selects the ZIP.
+
+### Upgrading
+
+Nothing to change. CodeBuild additionally gets permission to use the source connection, which the
+clone is fetched through.
+
 ## v3.1.0
 
 ### Changed

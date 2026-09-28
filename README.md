@@ -28,14 +28,14 @@ account hosting it.
 
 ```hcl
 module "azure_devops_connection" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.1.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.2.0"
 
   name          = "azure-devops"
   provider_type = "AzureDevOps"
 }
 
 module "my_service" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.1.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.2.0"
 
   name = "my-service"
   source_repository = {
@@ -103,8 +103,11 @@ By default, pushes to `source_repository.branch` start the pipeline. `triggers.p
 `triggers.pull_request_branches` take branch patterns such as `release/*` or `**`. The branch and
 commit of a run reach the builds as `SOURCE_BRANCH_NAME` and `SOURCE_COMMIT_ID`.
 
-The source arrives as a ZIP of the commit. Set `source_repository.full_clone = true` when a build
-needs Git itself, for example to read tags; CodeBuild then clones through the connection.
+By default CodeBuild receives a Git clone of the commit, fetched through the connection. The
+alternative, `source_repository.full_clone = false`, hands over a ZIP of the commit instead, which
+is lighter but does not keep the files' executable bits. A container whose entrypoint is a script
+from the repository then fails to start with "Permission denied", so only switch it off for
+repositories without executable files.
 
 ## Environments and deployment
 

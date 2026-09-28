@@ -35,6 +35,26 @@ run "names_are_derived_from_name" {
   }
 }
 
+run "zip_source_on_request" {
+  command = apply
+  variables {
+    source_repository = {
+      connection_arn = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id  = "my-group/my-service"
+      full_clone     = false
+    }
+  }
+
+  assert {
+    condition     = aws_codepipeline.this.stage[0].action[0].configuration.OutputArtifactFormat == "CODE_ZIP"
+    error_message = "full_clone = false must hand over a ZIP."
+  }
+  assert {
+    condition     = !contains([for s in data.aws_iam_policy_document.codebuild.statement : s.sid], "UseSourceConnection")
+    error_message = "Without a clone CodeBuild does not need the connection."
+  }
+}
+
 run "source_and_trigger_defaults" {
   command = apply
 
@@ -43,8 +63,8 @@ run "source_and_trigger_defaults" {
     error_message = "Pipelines must be V2 to support triggers."
   }
   assert {
-    condition     = aws_codepipeline.this.stage[0].action[0].configuration.OutputArtifactFormat == "CODE_ZIP"
-    error_message = "Without full_clone the source must be a ZIP."
+    condition     = aws_codepipeline.this.stage[0].action[0].configuration.OutputArtifactFormat == "CODEBUILD_CLONE_REF"
+    error_message = "The source must be a Git clone by default, so that executable bits survive."
   }
   assert {
     condition     = aws_codepipeline.this.stage[0].action[0].configuration.BranchName == "main"
@@ -72,8 +92,8 @@ run "optional_parts_are_off_by_default" {
     error_message = "The artifact bucket must stay private by default."
   }
   assert {
-    condition     = !contains([for s in data.aws_iam_policy_document.codebuild.statement : s.sid], "UseSourceConnection")
-    error_message = "CodeBuild only needs the connection for a full clone."
+    condition     = contains([for s in data.aws_iam_policy_document.codebuild.statement : s.sid], "UseSourceConnection")
+    error_message = "CodeBuild clones through the connection by default, so it needs to use it."
   }
   assert {
     condition     = !contains([for s in data.aws_iam_policy_document.codebuild.statement : s.sid], "AssumeDeploymentRole")
