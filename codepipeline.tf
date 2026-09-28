@@ -24,7 +24,7 @@ resource "aws_codepipeline" "this" {
         ConnectionArn        = var.source_repository.connection_arn
         FullRepositoryId     = var.source_repository.repository_id
         BranchName           = var.source_repository.branch
-        OutputArtifactFormat = var.source_repository.full_clone ? "CODEBUILD_CLONE_REF" : "CODE_ZIP"
+        OutputArtifactFormat = local.full_clone ? "CODEBUILD_CLONE_REF" : "CODE_ZIP"
       }
     }
   }
@@ -97,6 +97,11 @@ resource "aws_codepipeline" "this" {
         Activate the connection in the AWS console, then apply again:
         https://${local.region}.console.aws.amazon.com/codesuite/settings/connections?region=${local.region}
       EOT
+    }
+
+    precondition {
+      condition     = !local.full_clone || local.codebuild_can_clone
+      error_message = "CodeBuild cannot clone from ${data.aws_codestarconnections_connection.source.provider_type}, so source_repository.full_clone must not be true. Builds receive a ZIP of the commit instead, which does not keep executable bits; set them in the build, e.g. with RUN chmod +x in the Dockerfile."
     }
   }
 }

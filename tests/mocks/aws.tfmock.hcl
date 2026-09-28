@@ -48,6 +48,7 @@ mock_data "aws_codestarconnections_connection" {
   defaults = {
     name              = "mock-connection"
     connection_status = "AVAILABLE"
+    provider_type     = "GitLab"
   }
 }
 

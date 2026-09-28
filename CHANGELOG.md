@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.3.0
+
+### Changed
+
+- The source format follows the provider when `source_repository.full_clone` is unset: a Git clone
+  where CodeBuild can clone from the provider (Bitbucket, GitHub, GitHub Enterprise Server, GitLab),
+  a ZIP for Azure DevOps. v3.2.0 cloned everywhere, but CodeBuild cannot clone from Azure DevOps,
+  so every build of an Azure DevOps repository failed at the source download with "authorization
+  failed for primary source".
+- `full_clone = true` is rejected for providers CodeBuild cannot clone from, with an explanation.
+
+### Upgrading
+
+Azure DevOps pipelines switch back to the ZIP and CodeBuild no longer uses the connection. The ZIP
+does not keep executable bits; builds that run scripts from the repository directly have to make
+them executable again, see the README.
+
 ## v3.2.0
 
 ### Changed

@@ -28,14 +28,14 @@ account hosting it.
 
 ```hcl
 module "azure_devops_connection" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.2.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git//modules/code_connection?ref=v3.3.0"
 
   name          = "azure-devops"
   provider_type = "AzureDevOps"
 }
 
 module "my_service" {
-  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.2.0"
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.3.0"
 
   name = "my-service"
   source_repository = {
@@ -103,11 +103,23 @@ By default, pushes to `source_repository.branch` start the pipeline. `triggers.p
 `triggers.pull_request_branches` take branch patterns such as `release/*` or `**`. The branch and
 commit of a run reach the builds as `SOURCE_BRANCH_NAME` and `SOURCE_COMMIT_ID`.
 
-By default CodeBuild receives a Git clone of the commit, fetched through the connection. The
-alternative, `source_repository.full_clone = false`, hands over a ZIP of the commit instead, which
-is lighter but does not keep the files' executable bits. A container whose entrypoint is a script
-from the repository then fails to start with "Permission denied", so only switch it off for
-repositories without executable files.
+How the source reaches CodeBuild depends on the provider:
+
+- **Bitbucket, GitHub, GitHub Enterprise Server, GitLab:** CodeBuild clones the commit itself
+  through the connection. The build sees a Git working copy, with the files' executable bits.
+- **Azure DevOps:** CodeBuild cannot clone from it, so the build receives a ZIP of the commit.
+  **The ZIP does not keep executable bits.** A script from the repository that the build or the
+  image runs directly, such as a container entrypoint, fails with "Permission denied" unless the
+  build makes it executable again, for example:
+
+  ```dockerfile
+  COPY docker-entrypoint.sh ./
+  RUN chmod +x docker-entrypoint.sh
+  ```
+
+`source_repository.full_clone` overrides the choice. `false` forces the ZIP everywhere; `true` is
+rejected for providers CodeBuild cannot clone from, instead of letting every build fail at the
+source download.
 
 ## Environments and deployment
 

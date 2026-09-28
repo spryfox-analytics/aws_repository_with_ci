@@ -169,7 +169,7 @@ data "aws_iam_policy_document" "codebuild" {
 
   # A full clone makes CodeBuild itself fetch the repository through the connection.
   dynamic "statement" {
-    for_each = var.source_repository.full_clone ? [1] : []
+    for_each = local.full_clone ? [1] : []
     content {
       sid       = "UseSourceConnection"
       actions   = local.use_connection_actions

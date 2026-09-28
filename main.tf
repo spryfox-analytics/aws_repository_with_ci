@@ -34,6 +34,12 @@ locals {
   codebuild_actions = { for action in local.actions : action.name => action if action.provider == "CodeBuild" }
 
   # An explicit empty list means "no deployment role", so only null falls back to every environment.
+  # CodeBuild clones the source itself for a full clone, which it can do from these providers
+  # only. For the others, notably Azure DevOps, the source can only be handed over as a ZIP.
+  providers_codebuild_can_clone_from = ["Bitbucket", "GitHub", "GitHubEnterpriseServer", "GitLab", "GitLabSelfManaged"]
+  codebuild_can_clone                = contains(local.providers_codebuild_can_clone_from, data.aws_codestarconnections_connection.source.provider_type)
+  full_clone                         = var.source_repository.full_clone != null ? var.source_repository.full_clone : local.codebuild_can_clone
+
   deployment_environments = var.deployment_role.environments != null ? var.deployment_role.environments : keys(var.environments)
   environment_account_ids = distinct(values(var.environments))
 

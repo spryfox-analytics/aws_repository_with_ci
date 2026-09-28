@@ -64,7 +64,7 @@ run "source_and_trigger_defaults" {
   }
   assert {
     condition     = aws_codepipeline.this.stage[0].action[0].configuration.OutputArtifactFormat == "CODEBUILD_CLONE_REF"
-    error_message = "The source must be a Git clone by default, so that executable bits survive."
+    error_message = "A provider CodeBuild can clone from must get a Git clone by default, so that executable bits survive."
   }
   assert {
     condition     = aws_codepipeline.this.stage[0].action[0].configuration.BranchName == "main"

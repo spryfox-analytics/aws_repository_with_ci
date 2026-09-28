@@ -19,17 +19,17 @@ variable "source_repository" {
                       GitLab. Use exactly the value the CodePipeline console offers for the
                       repository; the format differs between providers and is case sensitive.
     - branch:         branch the source action reads, and the default push trigger.
-    - full_clone:     hand CodeBuild a Git clone of the commit (CODEBUILD_CLONE_REF). On by
-                      default, because the alternative, a ZIP of the commit, loses the files'
-                      executable bits: a container whose entrypoint is a script from the
-                      repository then fails with "Permission denied". Turn it off only for
-                      repositories without executable files.
+    - full_clone:     hand CodeBuild a Git clone of the commit (CODEBUILD_CLONE_REF) instead of
+                      a ZIP of it (CODE_ZIP). Left unset, the module decides by provider: a
+                      clone wherever CodeBuild can clone from the provider, which keeps the
+                      files' executable bits, and the ZIP for Azure DevOps, which CodeBuild
+                      cannot clone from. true for Azure DevOps is rejected.
   EOT
   type = object({
     connection_arn = string
     repository_id  = string
     branch         = optional(string, "main")
-    full_clone     = optional(bool, true)
+    full_clone     = optional(bool)
   })
 
   validation {
