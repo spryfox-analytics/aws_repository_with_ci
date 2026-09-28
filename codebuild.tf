@@ -1,73 +1,61 @@
 resource "aws_codebuild_project" "this" {
-  for_each      = { for index, action in var.pipeline_actions : index => action if action.codebuild_project_index != "" }
+  for_each = local.codebuild_actions
 
-  name          = "${local.dashed_repository_path}-${var.pipeline_actions[each.key].name}-codebuild-project"
-  service_role  = aws_iam_role.codebuild.arn
-  badge_enabled = false
-  build_timeout = 60
-  queued_timeout = 480
+  name           = "${local.names.codebuild_project_prefix}-${each.key}-codebuild-project"
+  service_role   = aws_iam_role.codebuild.arn
+  badge_enabled  = false
+  build_timeout  = each.value.codebuild.build_timeout
+  queued_timeout = each.value.codebuild.queued_timeout
 
   artifacts {
-    type                  = "CODEPIPELINE"
-    packaging             = "NONE"
-    name                  = "${local.dashed_repository_path}-${var.pipeline_actions[each.key].name}"
+    type                   = "CODEPIPELINE"
+    packaging              = "NONE"
+    name                   = "${local.names.codebuild_project_prefix}-${each.key}"
     override_artifact_name = false
   }
+
   environment {
-    compute_type                = "BUILD_GENERAL1_SMALL"
-    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    compute_type                = each.value.codebuild.compute_type
+    image                       = each.value.codebuild.image
     type                        = "LINUX_CONTAINER"
-    privileged_mode             = true
+    privileged_mode             = each.value.codebuild.privileged_mode
     image_pull_credentials_type = "CODEBUILD"
 
     dynamic "environment_variable" {
-      for_each = concat(
-        [
-          // always‐present vars
-          { name = "AWS_DEFAULT_REGION",               value = var.aws_region },
-          { name = "CODE_ARTIFACT_DOMAIN",             value = aws_codeartifact_repository.this.domain },
-          { name = "CODE_ARTIFACT_REPOSITORY",         value = aws_codeartifact_repository.this.repository },
-          { name = "CURRENT_AWS_ACCOUNT_ID",           value = data.aws_caller_identity.current.account_id },
-          { name = "ECR_REPOSITORY_NAME",              value = aws_ecr_repository.this.name },
-          { name = "S3_CODEPIPELINE_ARTIFACT_STORE_URL", value = "s3://${aws_s3_bucket.codepipeline_artifact_store.bucket}" }
-        ],
-        // optional ENVIRONMENT vars (only when environment is non-null/non-empty)
-        var.pipeline_actions[each.key].environment != null && var.pipeline_actions[each.key].environment != ""
-          ? [
-              {
-                name  = "ENVIRONMENT",
-                value = var.pipeline_actions[each.key].environment
-              },
-              {
-                name  = "ENVIRONMENT_AWS_ACCOUNT_ID",
-                value = lookup({
-                  dev  = var.aws_development_account_number
-                  int  = var.aws_integration_account_number
-                  prod = var.aws_production_account_number
-                }, var.pipeline_actions[each.key].environment, "")
-              }
-            ]
-          : [],
-        // extra user‐supplied vars
-        [for key, val in var.additional_environment_variables : {
-          name  = key
-          value = val
-        }]
+      for_each = merge(
+        {
+          AWS_DEFAULT_REGION                 = local.region
+          CURRENT_AWS_ACCOUNT_ID             = local.account_id
+          S3_CODEPIPELINE_ARTIFACT_STORE_URL = "s3://${aws_s3_bucket.artifacts.bucket}"
+        },
+        var.ecr_repository.enabled ? { ECR_REPOSITORY_NAME = aws_ecr_repository.this[0].name } : {},
+        var.codeartifact_domain != null ? {
+          CODE_ARTIFACT_DOMAIN     = aws_codeartifact_repository.this[0].domain
+          CODE_ARTIFACT_REPOSITORY = aws_codeartifact_repository.this[0].repository
+        } : {},
+        each.value.environment != null ? {
+          ENVIRONMENT                = each.value.environment
+          ENVIRONMENT_AWS_ACCOUNT_ID = var.environments[each.value.environment]
+        } : {},
+        var.environment_variables,
+        each.value.codebuild.environment_variables,
       )
 
       content {
-        name  = environment_variable.value.name
-        value = environment_variable.value.value
+        name  = environment_variable.key
+        value = environment_variable.value
       }
     }
   }
+
   source {
-    type              = "CODEPIPELINE"
-    buildspec         = var.pipeline_actions[each.key].buildspec
-    git_clone_depth   = 0
+    type                = "CODEPIPELINE"
+    buildspec           = each.value.buildspec
+    git_clone_depth     = 0
     report_build_status = false
-    insecure_ssl      = false
+    insecure_ssl        = false
   }
+
   logs_config {
     cloudwatch_logs {
       status = "ENABLED"
@@ -77,10 +65,5 @@ resource "aws_codebuild_project" "this" {
     }
   }
 
-  tags = {
-    Application = var.application
-    Customer    = var.customer
-    Name        = "${replace(var.gitlab_repository_path, "/", "-")}-${var.pipeline_actions[each.key].name}-codebuild"
-    Project     = var.project
-  }
+  tags = merge(local.tags, { Name = "${local.names.codebuild_project_prefix}-${each.key}-codebuild-project" })
 }

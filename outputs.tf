@@ -1,17 +1,18 @@
-output "codeartifact_repository_arn" {
-  value = aws_codeartifact_repository.this.arn
+output "codepipeline_name" {
+  value = aws_codepipeline.this.name
 }
 
-output "codeartifact_repository_id" {
-  value = aws_codeartifact_repository.this.id
+output "codepipeline_arn" {
+  value = aws_codepipeline.this.arn
 }
 
-output "codebuild_project_arns" {
-  value = [for p in aws_codebuild_project.this : p.arn]
+output "codepipeline_role_arn" {
+  value = aws_iam_role.codepipeline.arn
 }
 
-output "codebuild_project_names" {
-  value = [for p in aws_codebuild_project.this : p.name]
+output "codebuild_projects" {
+  description = "CodeBuild projects keyed by action name."
+  value       = { for name, project in aws_codebuild_project.this : name => { name = project.name, arn = project.arn } }
 }
 
 output "codebuild_role_arn" {
@@ -22,18 +23,30 @@ output "codebuild_role_name" {
   value = aws_iam_role.codebuild.name
 }
 
+output "artifact_bucket_name" {
+  value = aws_s3_bucket.artifacts.bucket
+}
+
+output "artifact_bucket_arn" {
+  value = aws_s3_bucket.artifacts.arn
+}
+
+output "artifact_access_point_arn" {
+  value = one(aws_s3_access_point.artifacts[*].arn)
+}
+
+output "ecr_repository_name" {
+  value = one(aws_ecr_repository.this[*].name)
+}
+
 output "ecr_repository_url" {
-  value = aws_ecr_repository.this.repository_url
+  value = one(aws_ecr_repository.this[*].repository_url)
 }
 
-output "codepipeline_name" {
-  value = awscc_codepipeline_pipeline.this.name
+output "codeartifact_repository_name" {
+  value = one(aws_codeartifact_repository.this[*].repository)
 }
 
-output "codepipeline_role_arn" {
-  value = aws_iam_role.codepipeline.arn
-}
-
-output "codepipeline_role_name" {
-  value = aws_iam_role.codepipeline.name
+output "codeartifact_repository_arn" {
+  value = one(aws_codeartifact_repository.this[*].arn)
 }

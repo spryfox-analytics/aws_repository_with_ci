@@ -1,1 +1,6 @@
 /.idea
+# Local Terraform state of tests and validation runs
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*

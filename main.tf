@@ -1,0 +1,33 @@
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
+locals {
+  account_id = data.aws_caller_identity.current.account_id
+  region     = data.aws_region.current.region
+
+  camel_case_name = join("", [for part in split("-", var.name) : title(part)])
+
+  names = {
+    pipeline                 = coalesce(var.resource_names.pipeline, "${var.name}-codepipeline")
+    artifact_bucket          = coalesce(var.resource_names.artifact_bucket, "${var.name}-artifacts-${local.account_id}")
+    artifact_access_point    = coalesce(var.resource_names.artifact_access_point, "${var.name}-access-point")
+    ecr_repository           = coalesce(var.resource_names.ecr_repository, var.name)
+    codeartifact_repository  = coalesce(var.resource_names.codeartifact_repository, var.name)
+    codebuild_project_prefix = coalesce(var.resource_names.codebuild_project_prefix, var.name)
+    iam_role_prefix          = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
+  }
+
+  actions = [
+    for action in var.actions : merge(action, {
+      input_artifacts = action.input_artifacts != null ? action.input_artifacts : (action.provider == "CodeBuild" ? ["SourceArtifact"] : [])
+    })
+  ]
+  codebuild_actions = { for action in local.actions : action.name => action if action.provider == "CodeBuild" }
+
+  # An explicit empty list means "no deployment role", so only null falls back to every environment.
+  deployment_environments = var.deployment_role.environments != null ? var.deployment_role.environments : keys(var.environments)
+  environment_account_ids = distinct(values(var.environments))
+
+  tags = { for key, value in var.tags : key => value if key != "Name" }
+}
