@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.5.0
+
+### Added
+
+- `stages`: deploy stages of their own after Source, each with actions as in `actions`. CodePipeline
+  runs one execution per stage at a time, so with a single Deploy stage an open manual approval holds
+  back every later push, also the parts of the deployment that need no approval. With stages it only
+  holds its own stage, for example while dev deploys on every push.
+
+### Upgrading
+
+Nothing changes without `stages`: the actions still form the stage "Deploy", and the CodeBuild
+projects keep their names, so a plan shows no change.
+
 ## v3.4.0
 
 ### Changed

@@ -26,11 +26,18 @@ locals {
     iam_role_prefix          = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
   }
 
-  actions = [
-    for action in var.actions : merge(action, {
-      input_artifacts = action.input_artifacts != null ? action.input_artifacts : (action.provider == "CodeBuild" ? ["SourceArtifact"] : [])
-    })
+  # Without stages, the actions form the single stage "Deploy" as before.
+  stages = [
+    for stage in(var.stages != null ? var.stages : [{ name = "Deploy", actions = var.actions }]) : {
+      name = stage.name
+      actions = [
+        for action in stage.actions : merge(action, {
+          input_artifacts = action.input_artifacts != null ? action.input_artifacts : (action.provider == "CodeBuild" ? ["SourceArtifact"] : [])
+        })
+      ]
+    }
   ]
+  actions           = flatten([for stage in local.stages : stage.actions])
   codebuild_actions = { for action in local.actions : action.name => action if action.provider == "CodeBuild" }
 
   # An explicit empty list means "no deployment role", so only null falls back to every environment.

@@ -29,30 +29,34 @@ resource "aws_codepipeline" "this" {
     }
   }
 
-  stage {
-    name = "Deploy"
+  dynamic "stage" {
+    for_each = local.stages
 
-    dynamic "action" {
-      for_each = local.actions
+    content {
+      name = stage.value.name
 
-      content {
-        name             = action.value.name
-        category         = action.value.category
-        owner            = "AWS"
-        provider         = action.value.provider
-        version          = "1"
-        run_order        = action.key + 1
-        input_artifacts  = action.value.input_artifacts
-        output_artifacts = action.value.output_artifacts
+      dynamic "action" {
+        for_each = stage.value.actions
 
-        configuration = action.value.provider == "CodeBuild" ? {
-          ProjectName = aws_codebuild_project.this[action.value.name].name
-          # Which commit a run builds is only known at run time, so it is handed over per execution.
-          EnvironmentVariables = jsonencode([
-            { name = "SOURCE_BRANCH_NAME", value = "#{SourceVariables.BranchName}", type = "PLAINTEXT" },
-            { name = "SOURCE_COMMIT_ID", value = "#{SourceVariables.CommitId}", type = "PLAINTEXT" },
-          ])
-        } : (length(action.value.configuration) > 0 ? action.value.configuration : null)
+        content {
+          name             = action.value.name
+          category         = action.value.category
+          owner            = "AWS"
+          provider         = action.value.provider
+          version          = "1"
+          run_order        = action.key + 1
+          input_artifacts  = action.value.input_artifacts
+          output_artifacts = action.value.output_artifacts
+
+          configuration = action.value.provider == "CodeBuild" ? {
+            ProjectName = aws_codebuild_project.this[action.value.name].name
+            # Which commit a run builds is only known at run time, so it is handed over per execution.
+            EnvironmentVariables = jsonencode([
+              { name = "SOURCE_BRANCH_NAME", value = "#{SourceVariables.BranchName}", type = "PLAINTEXT" },
+              { name = "SOURCE_COMMIT_ID", value = "#{SourceVariables.CommitId}", type = "PLAINTEXT" },
+            ])
+          } : (length(action.value.configuration) > 0 ? action.value.configuration : null)
+        }
       }
     }
   }

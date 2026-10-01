@@ -128,6 +128,34 @@ and pull images from the ECR repository. An action with `environment = "prod"` r
 `ENVIRONMENT=prod` and `ENVIRONMENT_AWS_ACCOUNT_ID`, and CodeBuild may assume
 `deployment_role.name` in the environment accounts, by default in all of them.
 
+## Stages
+
+By default the pipeline has two stages: Source and Deploy, which runs `actions` one after another.
+CodePipeline runs one execution per stage at a time; a newer execution waits in front of a stage
+until the current one has left it, and of several waiting ones only the newest goes on. So when the
+Deploy stage holds a manual approval, every later push waits for it, including the parts of the
+deployment that need no approval.
+
+`stages` splits the deployment into stages of their own, each with its actions in the format of
+`actions`. An open approval then only holds its own stage:
+
+```hcl
+stages = [
+  { name = "Dev", actions = [{ name = "apply-dev", environment = "dev", buildspec = "buildspec_apply.yml" }] },
+  {
+    name = "Prod"
+    actions = [
+      { name = "plan-prod", environment = "prod", buildspec = "buildspec_plan.yml" },
+      { name = "approve-prod", category = "Approval", provider = "Manual" },
+      { name = "apply-prod", environment = "prod", buildspec = "buildspec_apply.yml" },
+    ]
+  },
+]
+```
+
+Every push deploys to dev at once, also while a production approval is still open. Action names stay
+unique across all stages, as they name the CodeBuild projects. Build-only pipelines need no stages.
+
 ## Build environment variables
 
 | Variable | Set when |

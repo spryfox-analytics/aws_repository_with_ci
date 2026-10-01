@@ -131,6 +131,58 @@ variable "actions" {
   }
 }
 
+variable "stages" {
+  description = <<-EOT
+    Deploy stages of the pipeline after Source, in order, each with its actions as in `actions`.
+    Use stages instead of `actions` when parts of a deployment must not wait for each other, for
+    example dev deploying on every push while a production approval is still open: CodePipeline
+    runs one execution per stage at a time, so an open approval only holds its own stage. When
+    null, the pipeline has the single stage "Deploy" made of `actions`.
+  EOT
+  type = list(object({
+    name = string
+    actions = list(object({
+      name             = string
+      category         = optional(string, "Build")
+      provider         = optional(string, "CodeBuild")
+      environment      = optional(string)
+      buildspec        = optional(string, "buildspec.yml")
+      input_artifacts  = optional(list(string))
+      output_artifacts = optional(list(string), [])
+      configuration    = optional(map(string), {})
+      codebuild = optional(object({
+        compute_type          = optional(string, "BUILD_GENERAL1_SMALL")
+        image                 = optional(string, "aws/codebuild/amazonlinux-x86_64-standard:5.0")
+        privileged_mode       = optional(bool, true)
+        build_timeout         = optional(number, 60)
+        queued_timeout        = optional(number, 480)
+        environment_variables = optional(map(string), {})
+      }), {})
+    }))
+  }))
+  default = null
+
+  validation {
+    condition     = var.stages == null ? true : length(var.stages) > 0 && alltrue([for stage in var.stages : length(stage.actions) > 0])
+    error_message = "stages needs at least one stage, and every stage at least one action."
+  }
+
+  validation {
+    condition     = var.stages == null ? true : length(distinct([for stage in var.stages : stage.name])) == length(var.stages) && !contains([for stage in var.stages : stage.name], "Source")
+    error_message = "Stage names must be unique and must not be \"Source\"."
+  }
+
+  validation {
+    condition     = var.stages == null ? true : length(distinct(flatten([for stage in var.stages : [for action in stage.actions : action.name]]))) == length(flatten([for stage in var.stages : stage.actions]))
+    error_message = "Action names must be unique across all stages; they name the CodeBuild projects."
+  }
+
+  validation {
+    condition     = var.stages == null ? true : alltrue(flatten([for stage in var.stages : [for action in stage.actions : action.environment == null ? true : contains(keys(var.environments), action.environment)]]))
+    error_message = "An action's environment must be a key of var.environments."
+  }
+}
+
 variable "environment_variables" {
   description = "Additional plain-text environment variables for every CodeBuild project. Per-action variables in `actions[*].codebuild.environment_variables` take precedence."
   type        = map(string)
