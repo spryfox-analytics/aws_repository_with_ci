@@ -24,17 +24,28 @@ variable "source_repository" {
                       clone wherever CodeBuild can clone from the provider, which keeps the
                       files' executable bits, and the ZIP for Azure DevOps, which CodeBuild
                       cannot clone from. true for Azure DevOps is rejected.
+    - directory:      directory of the service in a monorepo, e.g. "service-a". Only changes
+                      below it start the pipeline (unless triggers.file_paths says otherwise),
+                      buildspec paths are relative to it, and the builds get it as
+                      SOURCE_DIRECTORY. The builds still receive the whole repository, so a
+                      buildspec starts with: cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
   EOT
   type = object({
     connection_arn = string
     repository_id  = string
     branch         = optional(string, "main")
     full_clone     = optional(bool)
+    directory      = optional(string)
   })
 
   validation {
     condition     = can(regex("^arn:aws[a-z-]*:(codeconnections|codestar-connections):", var.source_repository.connection_arn))
     error_message = "source_repository.connection_arn must be the ARN of a CodeConnections connection."
+  }
+
+  validation {
+    condition     = var.source_repository.directory == null || can(regex("^[^/*]+(/[^/*]+)*$", var.source_repository.directory))
+    error_message = "source_repository.directory must be a relative path without leading or trailing slash and without wildcards, e.g. \"service-a\"."
   }
 }
 
@@ -45,11 +56,17 @@ variable "triggers" {
     - push_branches:         branch patterns whose pushes start it. Defaults to the source branch.
     - pull_request_branches: branch patterns whose pull requests start it. None by default.
     - pull_request_events:   pull request events that count.
+    - file_paths:            path patterns, e.g. ["service-a/**"]. If set, pushes and pull requests
+                             start the pipeline only when they change a matching file. Defaults
+                             to everything below source_repository.directory, if that is set.
+    - file_paths_excluded:   path patterns whose changes alone do not start it, e.g. ["**/*.md"].
   EOT
   type = object({
     push_branches         = optional(list(string))
     pull_request_branches = optional(list(string), [])
     pull_request_events   = optional(list(string), ["OPEN", "UPDATED", "CLOSED"])
+    file_paths            = optional(list(string), [])
+    file_paths_excluded   = optional(list(string), [])
   })
   default = {}
 }

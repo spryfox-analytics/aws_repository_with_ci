@@ -29,6 +29,7 @@ resource "aws_codebuild_project" "this" {
           S3_CODEPIPELINE_ARTIFACT_STORE_URL = "s3://${aws_s3_bucket.artifacts.bucket}"
         },
         var.ecr_repository.enabled ? { ECR_REPOSITORY_NAME = aws_ecr_repository.this[0].name } : {},
+        local.source_directory != null ? { SOURCE_DIRECTORY = local.source_directory } : {},
         var.codeartifact_domain != null ? {
           CODE_ARTIFACT_DOMAIN     = aws_codeartifact_repository.this[0].domain
           CODE_ARTIFACT_REPOSITORY = aws_codeartifact_repository.this[0].repository

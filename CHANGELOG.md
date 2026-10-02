@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.6.0
+
+### Added
+
+- `source_repository.directory`: builds one service of a monorepo. Only changes below the directory
+  start the pipeline, buildspec paths are relative to it, and builds get it as `SOURCE_DIRECTORY`.
+- `triggers.file_paths` and `triggers.file_paths_excluded`: push and pull request triggers start the
+  pipeline only for changes to matching files.
+
+### Upgrading
+
+Nothing changes without the new fields; a plan shows no change.
+
 ## v3.5.0
 
 ### Added

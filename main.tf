@@ -26,6 +26,16 @@ locals {
     iam_role_prefix          = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
   }
 
+  source_directory = var.source_repository.directory
+
+  # One file path filter for push and pull request triggers, or none. CodePipeline rejects empty
+  # include or exclude lists, so an unused one is left out.
+  trigger_file_path_includes = length(var.triggers.file_paths) > 0 ? var.triggers.file_paths : (local.source_directory != null ? ["${local.source_directory}/**"] : [])
+  trigger_file_paths = length(local.trigger_file_path_includes) + length(var.triggers.file_paths_excluded) > 0 ? [{
+    includes = length(local.trigger_file_path_includes) > 0 ? local.trigger_file_path_includes : null
+    excludes = length(var.triggers.file_paths_excluded) > 0 ? var.triggers.file_paths_excluded : null
+  }] : []
+
   # Without stages, the actions form the single stage "Deploy" as before.
   stages = [
     for stage in(var.stages != null ? var.stages : [{ name = "Deploy", actions = var.actions }]) : {
@@ -33,6 +43,8 @@ locals {
       actions = [
         for action in stage.actions : merge(action, {
           input_artifacts = action.input_artifacts != null ? action.input_artifacts : (action.provider == "CodeBuild" ? ["SourceArtifact"] : [])
+          # A buildspec file lies in the service directory; an inline buildspec stays as it is.
+          buildspec = local.source_directory != null && !strcontains(action.buildspec, "\n") ? "${local.source_directory}/${action.buildspec}" : action.buildspec
         })
       ]
     }

@@ -61,3 +61,15 @@ run "rejects_overlong_bucket_name" {
   }
   expect_failures = [aws_s3_bucket.artifacts]
 }
+
+run "rejects_directory_with_slashes" {
+  command = plan
+  variables {
+    source_repository = {
+      connection_arn = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id  = "my-group/monorepo"
+      directory      = "/my-service/"
+    }
+  }
+  expect_failures = [var.source_repository]
+}

@@ -103,6 +103,34 @@ By default, pushes to `source_repository.branch` start the pipeline. `triggers.p
 `triggers.pull_request_branches` take branch patterns such as `release/*` or `**`. The branch and
 commit of a run reach the builds as `SOURCE_BRANCH_NAME` and `SOURCE_COMMIT_ID`.
 
+In a monorepo, `source_repository.directory` names the service's directory. Only changes below
+it start the pipeline, buildspec paths are relative to it, and the builds get it as
+`SOURCE_DIRECTORY`:
+
+```hcl
+source_repository = {
+  connection_arn = module.connection.arn
+  repository_id  = "my-org/my-project/monorepo"
+  directory      = "my-service"
+}
+```
+
+The builds still receive the whole repository, so the buildspec changes into the directory first.
+Without a directory the same line leads to the repository root, so the buildspec works either way:
+
+```yaml
+phases:
+  install:
+    commands:
+      - cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
+```
+
+With buildspec version 0.2 the directory stays for the later commands and phases. Paths outside the
+directory that should also start the pipeline go to `triggers.file_paths` (which then replaces the
+default), changes that need no build to `triggers.file_paths_excluded`, e.g. `["**/*.md"]`.
+CodePipeline does not start a path filtered pipeline for the first push of a new branch, because it
+gets no list of changed files for it.
+
 How the source reaches CodeBuild depends on the provider:
 
 - **Bitbucket, GitHub, GitHub Enterprise Server, GitLab:** CodeBuild clones the commit itself

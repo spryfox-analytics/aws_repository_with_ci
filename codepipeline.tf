@@ -71,6 +71,15 @@ resource "aws_codepipeline" "this" {
         branches {
           includes = var.triggers.push_branches != null ? var.triggers.push_branches : [var.source_repository.branch]
         }
+
+        dynamic "file_paths" {
+          for_each = local.trigger_file_paths
+
+          content {
+            includes = file_paths.value.includes
+            excludes = file_paths.value.excludes
+          }
+        }
       }
 
       dynamic "pull_request" {
@@ -81,6 +90,15 @@ resource "aws_codepipeline" "this" {
 
           branches {
             includes = var.triggers.pull_request_branches
+          }
+
+          dynamic "file_paths" {
+            for_each = local.trigger_file_paths
+
+            content {
+              includes = file_paths.value.includes
+              excludes = file_paths.value.excludes
+            }
           }
         }
       }
