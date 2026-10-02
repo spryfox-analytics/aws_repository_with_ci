@@ -59,6 +59,15 @@ data "aws_iam_policy_document" "codepipeline" {
     actions   = local.use_connection_actions
     resources = [var.source_repository.connection_arn]
   }
+
+  dynamic "statement" {
+    for_each = local.skip_unchanged ? [1] : []
+    content {
+      sid       = "CheckChanges"
+      actions   = ["lambda:InvokeFunction"]
+      resources = [aws_lambda_function.change_check[0].arn]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "codepipeline" {

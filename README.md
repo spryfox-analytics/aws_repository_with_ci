@@ -104,7 +104,7 @@ By default, pushes to `source_repository.branch` start the pipeline. `triggers.p
 commit of a run reach the builds as `SOURCE_BRANCH_NAME` and `SOURCE_COMMIT_ID`.
 
 In a monorepo, `source_repository.directory` names the service's directory. Only changes below
-it start the pipeline, buildspec paths are relative to it, and the builds get it as
+it lead to a build, buildspec paths are relative to it, and the builds get it as
 `SOURCE_DIRECTORY`:
 
 ```hcl
@@ -125,11 +125,22 @@ phases:
       - cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
 ```
 
-With buildspec version 0.2 the directory stays for the later commands and phases. Paths outside the
-directory that should also start the pipeline go to `triggers.file_paths` (which then replaces the
-default), changes that need no build to `triggers.file_paths_excluded`, e.g. `["**/*.md"]`.
-CodePipeline does not start a path filtered pipeline for the first push of a new branch, because it
-gets no list of changed files for it.
+With buildspec version 0.2 the directory stays for the later commands and phases. Two mechanisms keep the other services' changes from building:
+
+- **Trigger filter on file paths** (Bitbucket, GitHub, GitLab): the directory becomes the trigger's
+  file path filter, so only pushes that change files below it start the pipeline. Paths outside the
+  directory that should also start it go to `triggers.file_paths` (which then replaces the
+  default), changes that need no build to `triggers.file_paths_excluded`, e.g. `["**/*.md"]`.
+  CodePipeline does not start a path filtered pipeline for the first push of a new branch, because
+  it gets no list of changed files for it.
+- **Skipping unchanged stages** (`skip_unchanged`, on by default with a directory): Azure DevOps
+  reports the push that completes a pull request without its commits, so a file path filter never
+  fires there and the module sets none. Instead every push starts the pipeline, and a stage
+  condition skips every deploy stage unless a file below the directory differs from the source of
+  the last successful execution. A small Lambda function (`<name>-change-check`) compares the two
+  source ZIPs by file name and CRC; its log says why it ran or skipped a stage. Executions started
+  by hand always run, and so does every stage when the check cannot decide. With a manual approval
+  in a later stage, this also keeps unrelated pushes from asking for approvals.
 
 How the source reaches CodeBuild depends on the provider:
 

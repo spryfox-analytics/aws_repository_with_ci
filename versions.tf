@@ -8,5 +8,9 @@ terraform {
       # 6.8.0 is the first release whose CodeConnections client knows the AzureDevOps provider type.
       version = ">= 6.8.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = ">= 2.4.0"
+    }
   }
 }

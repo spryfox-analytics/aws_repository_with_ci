@@ -25,7 +25,8 @@ variable "source_repository" {
                       files' executable bits, and the ZIP for Azure DevOps, which CodeBuild
                       cannot clone from. true for Azure DevOps is rejected.
     - directory:      directory of the service in a monorepo, e.g. "service-a". Only changes
-                      below it start the pipeline (unless triggers.file_paths says otherwise),
+                      below it start the pipeline (unless triggers.file_paths says otherwise;
+                      for Azure DevOps through skip_unchanged instead of a trigger filter),
                       buildspec paths are relative to it, and the builds get it as
                       SOURCE_DIRECTORY. The builds still receive the whole repository, so a
                       buildspec starts with: cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
@@ -58,7 +59,8 @@ variable "triggers" {
     - pull_request_events:   pull request events that count.
     - file_paths:            path patterns, e.g. ["service-a/**"]. If set, pushes and pull requests
                              start the pipeline only when they change a matching file. Defaults
-                             to everything below source_repository.directory, if that is set.
+                             to everything below source_repository.directory, if that is set,
+                             except for Azure DevOps, where such a filter never fires.
     - file_paths_excluded:   path patterns whose changes alone do not start it, e.g. ["**/*.md"].
   EOT
   type = object({
@@ -250,8 +252,9 @@ variable "resource_names" {
     - ecr_repository:           "<name>"
     - codeartifact_repository:  "<name>"
     - codebuild_project_prefix: "<name>"; projects are named "<prefix>-<action>-codebuild-project"
-    - iam_role_prefix:          <name> in CamelCase; roles are "<prefix>CodebuildRole" and
-                                "<prefix>CodepipelineRole"
+    - iam_role_prefix:          <name> in CamelCase; roles are "<prefix>CodebuildRole",
+                                "<prefix>CodepipelineRole" and "<prefix>ChangeCheckRole"
+    - change_check_function:    "<name>-change-check" (Lambda function of skip_unchanged)
   EOT
   type = object({
     pipeline                 = optional(string)
@@ -261,8 +264,22 @@ variable "resource_names" {
     codeartifact_repository  = optional(string)
     codebuild_project_prefix = optional(string)
     iam_role_prefix          = optional(string)
+    change_check_function    = optional(string)
   })
   default = {}
+}
+
+variable "skip_unchanged" {
+  description = <<-EOT
+    Skip the deploy stages when nothing below source_repository.directory (or, without a
+    directory, in the whole repository) changed since the last successful execution. A Lambda
+    function compares the files of both sources as a stage condition. Executions started by hand
+    always run. Defaults to true when source_repository.directory is set: then every push starts
+    the pipeline where the provider cannot filter triggers by file path (Azure DevOps), and the
+    pipelines of the unchanged directories skip their stages within seconds.
+  EOT
+  type        = bool
+  default     = null
 }
 
 variable "tags" {

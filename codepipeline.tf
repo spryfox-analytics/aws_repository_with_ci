@@ -35,6 +35,37 @@ resource "aws_codepipeline" "this" {
     content {
       name = stage.value.name
 
+      dynamic "before_entry" {
+        for_each = local.skip_unchanged ? [1] : []
+
+        content {
+          condition {
+            result = "SKIP"
+
+            rule {
+              name            = "SourceChanged"
+              input_artifacts = ["SourceArtifact"]
+
+              rule_type_id {
+                category = "Rule"
+                owner    = "AWS"
+                provider = "LambdaInvoke"
+                version  = "1"
+              }
+
+              configuration = {
+                FunctionName = aws_lambda_function.change_check[0].function_name
+                UserParameters = jsonencode({
+                  pipeline  = local.names.pipeline
+                  directory = local.source_directory
+                  execution = "#{codepipeline.PipelineExecutionId}"
+                })
+              }
+            }
+          }
+        }
+      }
+
       dynamic "action" {
         for_each = stage.value.actions
 

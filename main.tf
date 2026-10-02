@@ -24,13 +24,20 @@ locals {
     codeartifact_repository  = coalesce(var.resource_names.codeartifact_repository, var.name)
     codebuild_project_prefix = coalesce(var.resource_names.codebuild_project_prefix, var.name)
     iam_role_prefix          = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
+    change_check_function    = coalesce(var.resource_names.change_check_function, "${var.name}-change-check")
   }
 
   source_directory = var.source_repository.directory
 
+  # Azure DevOps reports the push that completes a pull request without commits, so CodePipeline
+  # learns of no changed file and a file path filter never starts the pipeline. There the stage
+  # conditions of skip_unchanged take the filter's place.
+  path_filters_work = data.aws_codestarconnections_connection.source.provider_type != "AzureDevOps"
+  skip_unchanged    = var.skip_unchanged != null ? var.skip_unchanged : local.source_directory != null
+
   # One file path filter for push and pull request triggers, or none. CodePipeline rejects empty
   # include or exclude lists, so an unused one is left out.
-  trigger_file_path_includes = length(var.triggers.file_paths) > 0 ? var.triggers.file_paths : (local.source_directory != null ? ["${local.source_directory}/**"] : [])
+  trigger_file_path_includes = length(var.triggers.file_paths) > 0 ? var.triggers.file_paths : (local.source_directory != null && local.path_filters_work ? ["${local.source_directory}/**"] : [])
   trigger_file_paths = length(local.trigger_file_path_includes) + length(var.triggers.file_paths_excluded) > 0 ? [{
     includes = length(local.trigger_file_path_includes) > 0 ? local.trigger_file_path_includes : null
     excludes = length(var.triggers.file_paths_excluded) > 0 ? var.triggers.file_paths_excluded : null

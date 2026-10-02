@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.7.0
+
+### Added
+
+- `skip_unchanged`: stage conditions skip the deploy stages when nothing below
+  `source_repository.directory` changed since the last successful execution. A Lambda function per
+  pipeline compares the sources. On by default with a directory. Executions started by hand always
+  run.
+
+### Changed
+
+- For Azure DevOps, `source_repository.directory` no longer sets a file path filter on the trigger.
+  Azure DevOps reports the push that completes a pull request without commits, so such a filter
+  never started the pipeline; `skip_unchanged` takes its place.
+
+### Upgrading
+
+The module now also needs the `hashicorp/archive` provider (run `terraform init -upgrade`).
+Pipelines without a directory are unchanged. Pipelines with one get the change check function, its
+role and log group, and the stage conditions; for Azure DevOps their trigger loses the file path
+filter.
+
 ## v3.6.0
 
 ### Added

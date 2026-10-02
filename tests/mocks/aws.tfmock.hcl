@@ -58,3 +58,11 @@ mock_resource "aws_codeconnections_connection" {
     connection_status = "PENDING"
   }
 }
+
+mock_resource "aws_lambda_function" {
+  defaults = { arn = "arn:aws:lambda:eu-west-1:111111111111:function:mock" }
+}
+
+mock_resource "aws_cloudwatch_log_group" {
+  defaults = { arn = "arn:aws:logs:eu-west-1:111111111111:log-group:mock" }
+}
