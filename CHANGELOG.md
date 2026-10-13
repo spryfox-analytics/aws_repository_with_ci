@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.8.0
+
+### Added
+
+- `source_repository.additional_directories`: further directories of a monorepo whose changes
+  concern the pipeline, e.g. shared libraries a backend builds with. `skip_unchanged` runs the
+  stages when a file below the directory or one of them changed, and for providers with trigger
+  file path filters (Bitbucket, GitHub, GitLab) the default `triggers.file_paths` include them.
+  Buildspec paths and `SOURCE_DIRECTORY` stay with `directory`. Needs `directory`; entries are
+  relative paths without wildcards.
+- Unit tests of the change check function (`python3 -m unittest discover -s change_check`).
+
+### Upgrading
+
+Nothing changes without the new field; a plan shows no change. With it, the stage conditions, the
+function's description and, outside Azure DevOps, the trigger file paths change in place.
+
 ## v3.7.0
 
 ### Added

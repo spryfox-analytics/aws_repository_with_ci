@@ -85,3 +85,37 @@ run "can_be_turned_off" {
     error_message = "skip_unchanged = false must leave the stages unconditional."
   }
 }
+
+run "additional_directories_count_as_changes" {
+  command = apply
+  variables {
+    source_repository = {
+      connection_arn         = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id          = "my-org/my-project/monorepo"
+      directory              = "my-service"
+      additional_directories = ["core", "security", "my-service"]
+    }
+  }
+
+  assert {
+    condition     = jsondecode(aws_codepipeline.this.stage[1].before_entry[0].condition[0].rule[0].configuration.UserParameters).additional_directories == ["core", "security"]
+    error_message = "The check must also compare the additional directories, without repeating the directory."
+  }
+  assert {
+    condition     = jsondecode(aws_codepipeline.this.stage[1].before_entry[0].condition[0].rule[0].configuration.UserParameters).directory == "my-service"
+    error_message = "The directory must stay the check's main directory."
+  }
+}
+
+run "no_additional_directories_keep_the_configuration" {
+  command = apply
+
+  assert {
+    condition     = !contains(keys(jsondecode(aws_codepipeline.this.stage[1].before_entry[0].condition[0].rule[0].configuration.UserParameters)), "additional_directories")
+    error_message = "Without additional directories the rule configuration must stay as in v3.7.0."
+  }
+  assert {
+    condition     = aws_lambda_function.change_check[0].description == "Skips the stages of my-service-codepipeline when my-service did not change."
+    error_message = "Without additional directories the function description must stay as in v3.7.0."
+  }
+}

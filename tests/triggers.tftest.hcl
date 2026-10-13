@@ -111,3 +111,24 @@ run "file_paths_override_the_directory" {
     error_message = "Explicit file_paths must replace the directory default."
   }
 }
+
+run "additional_directories_extend_the_default_file_paths" {
+  command = apply
+  variables {
+    source_repository = {
+      connection_arn         = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id          = "my-group/monorepo"
+      directory              = "backend"
+      additional_directories = ["core", "security"]
+    }
+  }
+
+  assert {
+    condition     = aws_codepipeline.this.trigger[0].git_configuration[0].push[0].file_paths[0].includes == tolist(["backend/**", "core/**", "security/**"])
+    error_message = "Changes to the additional directories must start the pipeline too."
+  }
+  assert {
+    condition     = contains([for v in aws_codebuild_project.this["build"].environment[0].environment_variable : "${v.name}=${v.value}"], "SOURCE_DIRECTORY=backend")
+    error_message = "SOURCE_DIRECTORY must stay the directory."
+  }
+}

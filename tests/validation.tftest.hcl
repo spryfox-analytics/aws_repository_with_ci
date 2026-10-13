@@ -73,3 +73,28 @@ run "rejects_directory_with_slashes" {
   }
   expect_failures = [var.source_repository]
 }
+
+run "rejects_additional_directory_with_wildcard" {
+  command = plan
+  variables {
+    source_repository = {
+      connection_arn         = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id          = "my-group/monorepo"
+      directory              = "my-service"
+      additional_directories = ["core/**"]
+    }
+  }
+  expect_failures = [var.source_repository]
+}
+
+run "rejects_additional_directories_without_directory" {
+  command = plan
+  variables {
+    source_repository = {
+      connection_arn         = "arn:aws:codeconnections:eu-west-1:111111111111:connection/00000000-0000-0000-0000-000000000000"
+      repository_id          = "my-group/monorepo"
+      additional_directories = ["core"]
+    }
+  }
+  expect_failures = [var.source_repository]
+}

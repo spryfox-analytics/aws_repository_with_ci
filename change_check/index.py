@@ -1,8 +1,9 @@
-"""Rule of the stage conditions: lets a stage run only if the pipeline's directory changed.
+"""Rule of the stage conditions: lets a stage run only if the pipeline's directories changed.
 
-The rule passes (the stage runs) when a file below the directory differs from the source of the
-pipeline's last successful execution, and fails (the stage is skipped) when nothing there changed.
-Files are compared by name and CRC-32 from the ZIP's central directory, so nothing is extracted.
+The rule passes (the stage runs) when a file below the directory, or below one of the additional
+directories, differs from the source of the pipeline's last successful execution, and fails (the
+stage is skipped) when nothing there changed. Files are compared by name and CRC-32 from the ZIP's
+central directory, so nothing is extracted.
 
 Building needlessly is cheaper than missing a change, so the rule passes whenever it cannot tell:
 on the first execution, for executions started by hand, and on any error.
@@ -37,9 +38,9 @@ def handler(event, _context):
 
 def should_run(parameters, bucket, key):
     pipeline = parameters["pipeline"]
-    directory = parameters.get("directory") or ""
-    prefix = f"{directory}/" if directory else ""
-    where = f"{prefix or 'the repository'}"
+    directories = relevant_directories(parameters)
+    prefixes = [f"{directory}/" for directory in directories] or [""]
+    where = ", ".join(prefixes) if directories else "the repository"
 
     execution_id = parameters.get("execution", "")
     if execution_id and not execution_id.startswith("#{"):
@@ -53,15 +54,35 @@ def should_run(parameters, bucket, key):
         return True, f"Running the stage, {pipeline} has no successful execution to compare with."
     previous_id, previous_bucket, previous_key = previous
 
-    current = files(bucket, key, prefix)
+    current = files(bucket, key, prefixes)
     if not current:
-        return True, f"Running the stage, the source holds no files in {where}; is the directory right?"
-    before = files(previous_bucket, previous_key, prefix)
-    changed = sorted(name for name in current.keys() | before.keys() if current.get(name) != before.get(name))
+        return True, f"Running the stage, the source holds no files in {where}; are the directories right?"
+    empty = [prefix for prefix in prefixes if not any(name.startswith(prefix) for name in current)]
+    note = f" The source holds no files in {', '.join(empty)}; is the directory right?" if empty else ""
+    before = files(previous_bucket, previous_key, prefixes)
+    changed = changed_files(current, before)
     if changed:
         listed = ", ".join(changed[:10]) + (f" and {len(changed) - 10} more" if len(changed) > 10 else "")
-        return True, f"Running the stage, {len(changed)} files in {where} changed since execution {previous_id}: {listed}"
-    return False, f"Skipping the stage, nothing in {where} changed since execution {previous_id}."
+        return True, f"Running the stage, {len(changed)} files in {where} changed since execution {previous_id}: {listed}{note}"
+    return False, f"Skipping the stage, nothing in {where} changed since execution {previous_id}.{note}"
+
+
+def relevant_directories(parameters):
+    """The directory and the additional directories, in order and without duplicates.
+
+    An empty list stands for the whole repository. Without a directory every file counts anyway,
+    so additional directories add nothing and are ignored.
+    """
+    directory = parameters.get("directory") or ""
+    if not directory:
+        return []
+    directories = [directory] + list(parameters.get("additional_directories") or [])
+    return list(dict.fromkeys(d.strip("/") for d in directories if d and d.strip("/")))
+
+
+def changed_files(current, before):
+    """Names of the files that were added, removed or changed between two file listings."""
+    return sorted(name for name in current.keys() | before.keys() if current.get(name) != before.get(name))
 
 
 def last_successful_source(pipeline, exclude):
@@ -84,12 +105,17 @@ def last_successful_source(pipeline, exclude):
     return None
 
 
-def files(bucket, key, prefix):
-    """CRC-32 of every file below prefix in the ZIP at s3://bucket/key."""
+def files(bucket, key, prefixes):
+    """CRC-32 of every file below one of the prefixes in the ZIP at s3://bucket/key."""
     body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    return listing(body, prefixes)
+
+
+def listing(body, prefixes):
+    """CRC-32 of every file below one of the prefixes in the ZIP archive body."""
     with zipfile.ZipFile(io.BytesIO(body)) as archive:
         return {
             info.filename: info.CRC
             for info in archive.infolist()
-            if info.filename.startswith(prefix) and not info.is_dir()
+            if not info.is_dir() and info.filename.startswith(tuple(prefixes))
         }

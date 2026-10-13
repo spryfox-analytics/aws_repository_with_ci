@@ -1,7 +1,8 @@
-# Stage conditions that skip the deploy stages when the pipeline's directory did not change since
-# the last successful execution. Needed where the provider cannot filter triggers by file path,
-# notably Azure DevOps: every push starts every pipeline of the repository, and the stages of the
-# pipelines whose directory is unchanged are skipped. See change_check/index.py.
+# Stage conditions that skip the deploy stages when the pipeline's directory and its additional
+# directories did not change since the last successful execution. Needed where the provider cannot
+# filter triggers by file path, notably Azure DevOps: every push starts every pipeline of the
+# repository, and the stages of the pipelines whose directories are unchanged are skipped. See
+# change_check/index.py.
 
 data "archive_file" "change_check" {
   count = local.skip_unchanged ? 1 : 0
@@ -78,7 +79,7 @@ resource "aws_lambda_function" "change_check" {
   count = local.skip_unchanged ? 1 : 0
 
   function_name    = local.names.change_check_function
-  description      = "Skips the stages of ${local.names.pipeline} when ${coalesce(local.source_directory, "the repository")} did not change."
+  description      = "Skips the stages of ${local.names.pipeline} when ${coalesce(local.source_directory, "the repository")}${length(local.relevant_directories) > 1 ? " and ${length(local.relevant_directories) - 1} additional directories" : ""} did not change."
   role             = aws_iam_role.change_check[0].arn
   runtime          = "python3.13"
   handler          = "index.handler"

@@ -125,10 +125,45 @@ phases:
       - cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
 ```
 
-With buildspec version 0.2 the directory stays for the later commands and phases. Two mechanisms keep the other services' changes from building:
+With buildspec version 0.2 the directory stays for the later commands and phases.
 
-- **Trigger filter on file paths** (Bitbucket, GitHub, GitLab): the directory becomes the trigger's
-  file path filter, so only pushes that change files below it start the pipeline. Paths outside the
+A service that builds with code from other directories of the monorepo lists them in
+`source_repository.additional_directories`. Their changes then count like changes to the directory,
+for the trigger filter as well as for `skip_unchanged`; buildspec paths and `SOURCE_DIRECTORY` stay
+with the directory. For example a backend that uses the shared libraries in `core/` and
+`security/`, and an infrastructure pipeline that also deploys `tenants/` and `content-packs/`:
+
+```hcl
+module "backend" {
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.8.0"
+
+  name = "backend"
+  source_repository = {
+    connection_arn         = module.connection.arn
+    repository_id          = "my-org/my-project/monorepo"
+    directory              = "backend"
+    additional_directories = ["core", "security"]
+  }
+}
+
+module "infrastructure" {
+  source = "git::https://github.com/OWNER/aws_repository_with_ci.git?ref=v3.8.0"
+
+  name = "infrastructure"
+  source_repository = {
+    connection_arn         = module.connection.arn
+    repository_id          = "my-org/my-project/monorepo"
+    directory              = "infrastructure"
+    additional_directories = ["tenants", "content-packs"]
+  }
+}
+```
+
+A push to `core/` builds the backend, one to `frontend/` neither of them. Like `directory`, the
+entries are relative paths without wildcards. Two mechanisms keep the other services' changes from building:
+
+- **Trigger filter on file paths** (Bitbucket, GitHub, GitLab): the directory and the additional
+  directories become the trigger's file path filter, so only pushes that change files below it start the pipeline. Paths outside the
   directory that should also start it go to `triggers.file_paths` (which then replaces the
   default), changes that need no build to `triggers.file_paths_excluded`, e.g. `["**/*.md"]`.
   CodePipeline does not start a path filtered pipeline for the first push of a new branch, because
@@ -136,8 +171,8 @@ With buildspec version 0.2 the directory stays for the later commands and phases
 - **Skipping unchanged stages** (`skip_unchanged`, on by default with a directory): Azure DevOps
   reports the push that completes a pull request without its commits, so a file path filter never
   fires there and the module sets none. Instead every push starts the pipeline, and a stage
-  condition skips every deploy stage unless a file below the directory differs from the source of
-  the last successful execution. A small Lambda function (`<name>-change-check`) compares the two
+  condition skips every deploy stage unless a file below the directory or one of the additional
+  directories differs from the source of the last successful execution. A small Lambda function (`<name>-change-check`) compares the two
   source ZIPs by file name and CRC; its log says why it ran or skipped a stage. Executions started
   by hand always run, and so does every stage when the check cannot decide. With a manual approval
   in a later stage, this also keeps unrelated pushes from asking for approvals.
@@ -226,9 +261,11 @@ CodeArtifact offers no such protection, which makes the plan review for it all t
 ```sh
 terraform init -backend=false
 terraform test
+python3 -m unittest discover -s change_check
 ```
 
-The tests run against a mocked AWS provider and need neither credentials nor an account.
+The tests run against a mocked AWS provider and need neither credentials nor an account. The unit
+tests of the change check function need Python 3 only, not boto3.
 
 ## Upgrading
 

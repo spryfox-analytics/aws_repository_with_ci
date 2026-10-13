@@ -28,6 +28,8 @@ locals {
   }
 
   source_directory = var.source_repository.directory
+  # Every directory whose changes concern the pipeline; empty for the whole repository.
+  relevant_directories = local.source_directory != null ? distinct(concat([local.source_directory], var.source_repository.additional_directories)) : []
 
   # Azure DevOps reports the push that completes a pull request without commits, so CodePipeline
   # learns of no changed file and a file path filter never starts the pipeline. There the stage
@@ -37,7 +39,7 @@ locals {
 
   # One file path filter for push and pull request triggers, or none. CodePipeline rejects empty
   # include or exclude lists, so an unused one is left out.
-  trigger_file_path_includes = length(var.triggers.file_paths) > 0 ? var.triggers.file_paths : (local.source_directory != null && local.path_filters_work ? ["${local.source_directory}/**"] : [])
+  trigger_file_path_includes = length(var.triggers.file_paths) > 0 ? var.triggers.file_paths : (local.path_filters_work ? [for directory in local.relevant_directories : "${directory}/**"] : [])
   trigger_file_paths = length(local.trigger_file_path_includes) + length(var.triggers.file_paths_excluded) > 0 ? [{
     includes = length(local.trigger_file_path_includes) > 0 ? local.trigger_file_path_includes : null
     excludes = length(var.triggers.file_paths_excluded) > 0 ? var.triggers.file_paths_excluded : null

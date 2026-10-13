@@ -55,11 +55,16 @@ resource "aws_codepipeline" "this" {
 
               configuration = {
                 FunctionName = aws_lambda_function.change_check[0].function_name
-                UserParameters = jsonencode({
-                  pipeline  = local.names.pipeline
-                  directory = local.source_directory
-                  execution = "#{codepipeline.PipelineExecutionId}"
-                })
+                # additional_directories only when there are any, so that existing pipelines
+                # keep their configuration.
+                UserParameters = jsonencode(merge(
+                  {
+                    pipeline  = local.names.pipeline
+                    directory = local.source_directory
+                    execution = "#{codepipeline.PipelineExecutionId}"
+                  },
+                  length(local.relevant_directories) > 1 ? { additional_directories = slice(local.relevant_directories, 1, length(local.relevant_directories)) } : {},
+                ))
               }
             }
           }

@@ -30,13 +30,19 @@ variable "source_repository" {
                       buildspec paths are relative to it, and the builds get it as
                       SOURCE_DIRECTORY. The builds still receive the whole repository, so a
                       buildspec starts with: cd "$CODEBUILD_SRC_DIR/$SOURCE_DIRECTORY"
+    - additional_directories: further directories whose changes concern the service, e.g. the
+                      shared libraries ["core", "security"] a backend builds with. They count
+                      like the directory for skip_unchanged and for the default trigger file
+                      paths, but buildspec paths and SOURCE_DIRECTORY stay with directory.
+                      Needs directory; same format, without wildcards.
   EOT
   type = object({
-    connection_arn = string
-    repository_id  = string
-    branch         = optional(string, "main")
-    full_clone     = optional(bool)
-    directory      = optional(string)
+    connection_arn         = string
+    repository_id          = string
+    branch                 = optional(string, "main")
+    full_clone             = optional(bool)
+    directory              = optional(string)
+    additional_directories = optional(list(string), [])
   })
 
   validation {
@@ -47,6 +53,16 @@ variable "source_repository" {
   validation {
     condition     = var.source_repository.directory == null || can(regex("^[^/*]+(/[^/*]+)*$", var.source_repository.directory))
     error_message = "source_repository.directory must be a relative path without leading or trailing slash and without wildcards, e.g. \"service-a\"."
+  }
+
+  validation {
+    condition     = alltrue([for directory in var.source_repository.additional_directories : can(regex("^[^/*]+(/[^/*]+)*$", directory))])
+    error_message = "Every entry of source_repository.additional_directories must be a relative path without leading or trailing slash and without wildcards, e.g. \"core\"."
+  }
+
+  validation {
+    condition     = length(var.source_repository.additional_directories) == 0 || var.source_repository.directory != null
+    error_message = "source_repository.additional_directories needs source_repository.directory; without a directory every change in the repository counts anyway."
   }
 }
 
@@ -59,8 +75,9 @@ variable "triggers" {
     - pull_request_events:   pull request events that count.
     - file_paths:            path patterns, e.g. ["service-a/**"]. If set, pushes and pull requests
                              start the pipeline only when they change a matching file. Defaults
-                             to everything below source_repository.directory, if that is set,
-                             except for Azure DevOps, where such a filter never fires.
+                             to everything below source_repository.directory and its
+                             additional_directories, if a directory is set, except for Azure
+                             DevOps, where such a filter never fires.
     - file_paths_excluded:   path patterns whose changes alone do not start it, e.g. ["**/*.md"].
   EOT
   type = object({
@@ -271,12 +288,13 @@ variable "resource_names" {
 
 variable "skip_unchanged" {
   description = <<-EOT
-    Skip the deploy stages when nothing below source_repository.directory (or, without a
-    directory, in the whole repository) changed since the last successful execution. A Lambda
-    function compares the files of both sources as a stage condition. Executions started by hand
-    always run. Defaults to true when source_repository.directory is set: then every push starts
-    the pipeline where the provider cannot filter triggers by file path (Azure DevOps), and the
-    pipelines of the unchanged directories skip their stages within seconds.
+    Skip the deploy stages when nothing below source_repository.directory and its
+    additional_directories (or, without a directory, in the whole repository) changed since the
+    last successful execution. A Lambda function compares the files of both sources as a stage
+    condition. Executions started by hand always run. Defaults to true when
+    source_repository.directory is set: then every push starts the pipeline where the provider
+    cannot filter triggers by file path (Azure DevOps), and the pipelines of the unchanged
+    directories skip their stages within seconds.
   EOT
   type        = bool
   default     = null
