@@ -14,18 +14,31 @@ resource "aws_s3_bucket" "artifacts" {
   }
 }
 
+# Blocks public access unless public_read asks for it (S3.8).
 resource "aws_s3_bucket_public_access_block" "artifacts" {
-  count = var.artifact_bucket.public_read ? 1 : 0
-
   bucket                  = aws_s3_bucket.artifacts.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = !var.artifact_bucket.public_read
+  block_public_policy     = !var.artifact_bucket.public_read
+  ignore_public_acls      = !var.artifact_bucket.public_read
+  restrict_public_buckets = !var.artifact_bucket.public_read
 }
 
 data "aws_iam_policy_document" "artifacts" {
-  count = length(local.environment_account_ids) > 0 || var.artifact_bucket.public_read ? 1 : 0
+  statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.artifacts.arn, "${aws_s3_bucket.artifacts.arn}/*"]
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
 
   dynamic "statement" {
     for_each = length(local.environment_account_ids) > 0 ? [1] : []
@@ -37,6 +50,24 @@ data "aws_iam_policy_document" "artifacts" {
       }
       actions   = ["s3:Get*", "s3:List*"]
       resources = [aws_s3_bucket.artifacts.arn, "${aws_s3_bucket.artifacts.arn}/*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(var.artifact_bucket.cloudfront_distribution_arns) > 0 ? [1] : []
+    content {
+      sid = "CloudFrontOriginAccessControl"
+      principals {
+        type        = "Service"
+        identifiers = ["cloudfront.amazonaws.com"]
+      }
+      actions   = ["s3:GetObject"]
+      resources = ["${aws_s3_bucket.artifacts.arn}/${var.artifact_bucket.cloudfront_path_prefix}*"]
+      condition {
+        test     = "StringEquals"
+        variable = "AWS:SourceArn"
+        values   = var.artifact_bucket.cloudfront_distribution_arns
+      }
     }
   }
 
@@ -55,10 +86,8 @@ data "aws_iam_policy_document" "artifacts" {
 }
 
 resource "aws_s3_bucket_policy" "artifacts" {
-  count = length(data.aws_iam_policy_document.artifacts)
-
   bucket = aws_s3_bucket.artifacts.id
-  policy = data.aws_iam_policy_document.artifacts[0].json
+  policy = data.aws_iam_policy_document.artifacts.json
 
   # A public policy is rejected while the bucket still blocks public policies.
   depends_on = [aws_s3_bucket_public_access_block.artifacts]
@@ -76,4 +105,15 @@ resource "aws_s3_access_point" "artifacts" {
     ignore_public_acls      = !var.artifact_bucket.public_read
     restrict_public_buckets = !var.artifact_bucket.public_read
   }
+}
+
+# Both resources had a count up to v3.8.0.
+moved {
+  from = aws_s3_bucket_public_access_block.artifacts[0]
+  to   = aws_s3_bucket_public_access_block.artifacts
+}
+
+moved {
+  from = aws_s3_bucket_policy.artifacts[0]
+  to   = aws_s3_bucket_policy.artifacts
 }

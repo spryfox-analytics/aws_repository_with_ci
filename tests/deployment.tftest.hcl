@@ -97,7 +97,7 @@ run "every_environment_may_read_the_outputs" {
 
   assert {
     condition = anytrue([
-      for s in data.aws_iam_policy_document.artifacts[0].statement :
+      for s in data.aws_iam_policy_document.artifacts.statement :
       s.sid == "EnvironmentAccountsRead" && length(setsubtract(["222222222222", "333333333333", "444444444444"], flatten([for p in s.principals : p.identifiers]))) == 0
     ])
     error_message = "All environment accounts must be able to read the artifact bucket."

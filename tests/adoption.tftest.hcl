@@ -59,11 +59,11 @@ run "public_bucket_serves_objects" {
   command = apply
 
   assert {
-    condition     = contains([for s in data.aws_iam_policy_document.artifacts[0].statement : s.sid], "PublicReadGetObject")
+    condition     = contains([for s in data.aws_iam_policy_document.artifacts.statement : s.sid], "PublicReadGetObject")
     error_message = "public_read must add the public read statement."
   }
   assert {
-    condition     = !aws_s3_bucket_public_access_block.artifacts[0].block_public_policy
+    condition     = !aws_s3_bucket_public_access_block.artifacts.block_public_policy
     error_message = "A public bucket must not block public policies."
   }
   assert {

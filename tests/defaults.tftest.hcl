@@ -88,8 +88,12 @@ run "optional_parts_are_off_by_default" {
     error_message = "No CodeArtifact repository without a domain."
   }
   assert {
-    condition     = length(aws_s3_bucket_policy.artifacts) == 0 && length(aws_s3_access_point.artifacts) == 0 && length(aws_s3_bucket_public_access_block.artifacts) == 0
+    condition     = length(aws_s3_access_point.artifacts) == 0 && aws_s3_bucket_public_access_block.artifacts.block_public_policy && aws_s3_bucket_public_access_block.artifacts.restrict_public_buckets
     error_message = "The artifact bucket must stay private by default."
+  }
+  assert {
+    condition     = [for s in data.aws_iam_policy_document.artifacts.statement : s.sid] == ["DenyInsecureTransport"]
+    error_message = "By default the bucket policy only refuses requests without TLS."
   }
   assert {
     condition     = contains([for s in data.aws_iam_policy_document.codebuild.statement : s.sid], "UseSourceConnection")

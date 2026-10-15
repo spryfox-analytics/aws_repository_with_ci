@@ -248,11 +248,18 @@ variable "artifact_bucket" {
     S3_CODEPIPELINE_ARTIFACT_STORE_URL.
 
     - public_read:  make every object publicly readable, e.g. to serve a web application from it.
+                    Prefer cloudfront_distribution_arns.
     - access_point: additionally create an S3 access point on the bucket.
+    - cloudfront_distribution_arns: CloudFront distributions (any account) that read the bucket
+                    through Origin Access Control; the bucket stays private.
+    - cloudfront_path_prefix: key prefix those distributions may read, e.g. "releases/" (default:
+                    the whole bucket).
   EOT
   type = object({
-    public_read  = optional(bool, false)
-    access_point = optional(bool, false)
+    public_read                  = optional(bool, false)
+    access_point                 = optional(bool, false)
+    cloudfront_distribution_arns = optional(list(string), [])
+    cloudfront_path_prefix       = optional(string, "")
   })
   default = {}
 }

@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.9.0
+
+### Added
+
+- `artifact_bucket.cloudfront_distribution_arns` and `cloudfront_path_prefix`: CloudFront
+  distributions, also of other accounts, read the bucket through Origin Access Control while it
+  stays private. Replaces `public_read` for web applications.
+
+### Changed
+
+- The artifact bucket always has a public access block (all four settings on unless
+  `public_read`) and a bucket policy that refuses requests without TLS (Security Hub S3.8, S3.5).
+  `moved` blocks carry the former `[0]` instances over.
+
+### Upgrading
+
+A plan adds the public access block and the TLS statement to buckets that had none; buckets with
+`public_read` keep it. To move a web application to CloudFront: set
+`cloudfront_distribution_arns`, give the distribution an Origin Access Control on the bucket's REST
+endpoint, then drop `public_read` and `access_point`.
+
 ## v3.8.0
 
 ### Added
