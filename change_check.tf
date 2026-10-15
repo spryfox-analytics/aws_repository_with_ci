@@ -20,21 +20,11 @@ resource "aws_cloudwatch_log_group" "change_check" {
   tags              = local.tags
 }
 
-data "aws_iam_policy_document" "change_check_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
-    }
-  }
-}
-
 resource "aws_iam_role" "change_check" {
   count = local.skip_unchanged ? 1 : 0
 
   name               = "${local.names.iam_role_prefix}ChangeCheckRole"
-  assume_role_policy = data.aws_iam_policy_document.change_check_assume_role.json
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
   tags               = local.tags
 }
 

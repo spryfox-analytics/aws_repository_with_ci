@@ -1,7 +1,8 @@
 resource "aws_codepipeline" "this" {
-  name          = local.names.pipeline
-  role_arn      = aws_iam_role.codepipeline.arn
-  pipeline_type = "V2"
+  name           = local.names.pipeline
+  role_arn       = aws_iam_role.codepipeline.arn
+  pipeline_type  = "V2"
+  execution_mode = var.execution_mode
 
   artifact_store {
     location = aws_s3_bucket.artifacts.bucket

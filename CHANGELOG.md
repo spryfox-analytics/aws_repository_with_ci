@@ -1,5 +1,25 @@
 # Changelog
 
+## v3.10.0
+
+### Added
+
+- `supersede_waiting_approvals` (default false): keeps at most one execution waiting at each manual
+  approval of the deploy stages, the newest one. A Lambda function per pipeline
+  (`<name>-approval-superseder`, triggered by one EventBridge rule) stops an execution waiting at an
+  approval as soon as a newer one has finished the stage in front of the approval's stage, so the
+  newer one plans afresh. Executions that are planning or deploying are never stopped.
+- `execution_mode` (default `SUPERSEDED`, CodePipeline's default so far, now set explicitly);
+  `supersede_waiting_approvals` needs `SUPERSEDED`.
+- `resource_names.approval_superseder_function`.
+- Unit tests of the approval superseder function
+  (`python3 -m unittest discover -s approval_superseder`).
+
+### Upgrading
+
+Nothing changes without the new variable; a plan shows no change for pipelines that ran in the
+default execution mode. With it, the function, its role, log group and EventBridge rule are added.
+
 ## v3.9.0
 
 ### Added

@@ -277,18 +277,22 @@ variable "resource_names" {
     - codeartifact_repository:  "<name>"
     - codebuild_project_prefix: "<name>"; projects are named "<prefix>-<action>-codebuild-project"
     - iam_role_prefix:          <name> in CamelCase; roles are "<prefix>CodebuildRole",
-                                "<prefix>CodepipelineRole" and "<prefix>ChangeCheckRole"
+                                "<prefix>CodepipelineRole", "<prefix>ChangeCheckRole" and
+                                "<prefix>ApprovalSupersederRole"
     - change_check_function:    "<name>-change-check" (Lambda function of skip_unchanged)
+    - approval_superseder_function: "<name>-approval-superseder" (Lambda function and EventBridge
+                                rule of supersede_waiting_approvals)
   EOT
   type = object({
-    pipeline                 = optional(string)
-    artifact_bucket          = optional(string)
-    artifact_access_point    = optional(string)
-    ecr_repository           = optional(string)
-    codeartifact_repository  = optional(string)
-    codebuild_project_prefix = optional(string)
-    iam_role_prefix          = optional(string)
-    change_check_function    = optional(string)
+    pipeline                     = optional(string)
+    artifact_bucket              = optional(string)
+    artifact_access_point        = optional(string)
+    ecr_repository               = optional(string)
+    codeartifact_repository      = optional(string)
+    codebuild_project_prefix     = optional(string)
+    iam_role_prefix              = optional(string)
+    change_check_function        = optional(string)
+    approval_superseder_function = optional(string)
   })
   default = {}
 }
@@ -305,6 +309,39 @@ variable "skip_unchanged" {
   EOT
   type        = bool
   default     = null
+}
+
+variable "execution_mode" {
+  description = <<-EOT
+    How CodePipeline handles several executions: SUPERSEDED (a newer execution replaces one waiting
+    in front of a stage, the CodePipeline default), QUEUED (they wait in line) or PARALLEL.
+  EOT
+  type        = string
+  default     = "SUPERSEDED"
+
+  validation {
+    condition     = contains(["SUPERSEDED", "QUEUED", "PARALLEL"], var.execution_mode)
+    error_message = "execution_mode must be SUPERSEDED, QUEUED or PARALLEL."
+  }
+
+  validation {
+    condition     = !var.supersede_waiting_approvals || var.execution_mode == "SUPERSEDED"
+    error_message = "supersede_waiting_approvals needs execution_mode SUPERSEDED."
+  }
+}
+
+variable "supersede_waiting_approvals" {
+  description = <<-EOT
+    Keep at most one execution waiting at each manual approval of the deploy stages, the newest
+    one, so that an approval always confirms a fresh plan. CodePipeline already replaces executions
+    waiting in front of a stage, but not one that waits at an approval inside it. With this on, a
+    Lambda function stops (abandons) an execution waiting at an approval as soon as a newer one has
+    finished the stage in front of the approval's stage (Source for an approval in the first deploy
+    stage); the newer one then enters the stage and plans afresh. Executions that are planning or
+    deploying are never stopped. Needs execution_mode SUPERSEDED.
+  EOT
+  type        = bool
+  default     = false
 }
 
 variable "tags" {

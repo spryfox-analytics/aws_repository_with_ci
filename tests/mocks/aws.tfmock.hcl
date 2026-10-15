@@ -66,3 +66,7 @@ mock_resource "aws_lambda_function" {
 mock_resource "aws_cloudwatch_log_group" {
   defaults = { arn = "arn:aws:logs:eu-west-1:111111111111:log-group:mock" }
 }
+
+mock_resource "aws_cloudwatch_event_rule" {
+  defaults = { arn = "arn:aws:events:eu-west-1:111111111111:rule/mock" }
+}

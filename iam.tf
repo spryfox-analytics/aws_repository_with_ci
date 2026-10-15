@@ -192,3 +192,14 @@ resource "aws_iam_role_policy" "codebuild" {
   role   = aws_iam_role.codebuild.name
   policy = data.aws_iam_policy_document.codebuild.json
 }
+
+# Role trust of the module's Lambda functions (change check, approval superseder).
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}

@@ -17,14 +17,15 @@ locals {
   camel_case_name = join("", [for part in split("-", var.name) : title(part)])
 
   names = {
-    pipeline                 = coalesce(var.resource_names.pipeline, "${var.name}-codepipeline")
-    artifact_bucket          = coalesce(var.resource_names.artifact_bucket, "${var.name}-artifacts-${local.account_id}")
-    artifact_access_point    = coalesce(var.resource_names.artifact_access_point, "${var.name}-access-point")
-    ecr_repository           = coalesce(var.resource_names.ecr_repository, var.name)
-    codeartifact_repository  = coalesce(var.resource_names.codeartifact_repository, var.name)
-    codebuild_project_prefix = coalesce(var.resource_names.codebuild_project_prefix, var.name)
-    iam_role_prefix          = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
-    change_check_function    = coalesce(var.resource_names.change_check_function, "${var.name}-change-check")
+    pipeline                     = coalesce(var.resource_names.pipeline, "${var.name}-codepipeline")
+    artifact_bucket              = coalesce(var.resource_names.artifact_bucket, "${var.name}-artifacts-${local.account_id}")
+    artifact_access_point        = coalesce(var.resource_names.artifact_access_point, "${var.name}-access-point")
+    ecr_repository               = coalesce(var.resource_names.ecr_repository, var.name)
+    codeartifact_repository      = coalesce(var.resource_names.codeartifact_repository, var.name)
+    codebuild_project_prefix     = coalesce(var.resource_names.codebuild_project_prefix, var.name)
+    iam_role_prefix              = coalesce(var.resource_names.iam_role_prefix, local.camel_case_name)
+    change_check_function        = coalesce(var.resource_names.change_check_function, "${var.name}-change-check")
+    approval_superseder_function = coalesce(var.resource_names.approval_superseder_function, "${var.name}-approval-superseder")
   }
 
   source_directory = var.source_repository.directory

@@ -230,6 +230,28 @@ stages = [
 Every push deploys to dev at once, also while a production approval is still open. Action names stay
 unique across all stages, as they name the CodeBuild projects. Build-only pipelines need no stages.
 
+### Superseding runs that wait at an approval
+
+The pipeline runs in execution mode `SUPERSEDED` (`execution_mode`, CodePipeline's default): of
+several executions waiting in front of a stage only the newest goes on. An execution that already
+waits at a manual approval inside a stage is not replaced, though, so approving it would deploy an
+outdated plan while newer commits wait behind it.
+
+`supersede_waiting_approvals = true` closes that gap. Every approval action of the deploy stages
+becomes a gate whose trigger is the stage in front of the approval's stage (Source for an approval
+in the first deploy stage); with the stages above, Dev gates the approval in Int and Int the one in
+Prod. A Lambda function (`<name>-approval-superseder`, one per pipeline with one EventBridge rule)
+runs when an execution finishes such a stage and when one reaches an approval. If an execution waits
+at an approval while a newer one has finished the gate's stage, the function stops the waiting one
+(abandon), so the newer one enters the stage and plans afresh. At most one execution, the newest,
+waits at each approval, always with a fresh plan. Executions that are planning or deploying, the
+newest execution and executions that CodePipeline has superseded are never stopped; the function's
+log says what it decided and why. Invoked by hand without an event, it checks every gate against the
+pipeline state.
+
+The trigger stage counts as finished when its last action succeeded, so a stage skipped by
+`skip_unchanged` supersedes nothing. The feature needs `execution_mode = "SUPERSEDED"`.
+
 ## Build environment variables
 
 | Variable | Set when |
@@ -262,10 +284,11 @@ CodeArtifact offers no such protection, which makes the plan review for it all t
 terraform init -backend=false
 terraform test
 python3 -m unittest discover -s change_check
+python3 -m unittest discover -s approval_superseder
 ```
 
 The tests run against a mocked AWS provider and need neither credentials nor an account. The unit
-tests of the change check function need Python 3 only, not boto3.
+tests of the change check and approval superseder functions need Python 3 only, not boto3.
 
 ## Upgrading
 
