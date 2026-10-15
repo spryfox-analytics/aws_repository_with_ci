@@ -80,12 +80,18 @@ def stop(gate, waiting_id, newer_id):
         f"Stopping run {waiting_id} at {gate['approval_action']}: run {newer_id} has finished"
         f" {gate['previous_stage']} and plans {gate['approval_stage']} afresh."
     )
-    codepipeline.stop_pipeline_execution(
-        pipelineName=PIPELINE,
-        pipelineExecutionId=waiting_id,
-        abandon=True,
-        reason=f"Superseded by the newer run {newer_id}, which plans {gate['approval_stage']} afresh.",
-    )
+    try:
+        codepipeline.stop_pipeline_execution(
+            pipelineName=PIPELINE,
+            pipelineExecutionId=waiting_id,
+            abandon=True,
+            reason=f"Superseded by the newer run {newer_id}, which plans {gate['approval_stage']} afresh.",
+        )
+    except Exception as error:  # pylint: disable=broad-exception-caught
+        # The events of both runs can arrive within seconds; the other invocation stopped it first.
+        if type(error).__name__ != "PipelineExecutionNotStoppableException":
+            raise
+        print(f"Run {waiting_id} has already been stopped.")
 
 
 def reached_approval(gate, run_id):

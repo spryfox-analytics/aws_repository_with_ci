@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.10.1
+
+### Fixed
+
+- Approval superseder: when a run reaches an approval within seconds of a newer run finishing the
+  stage in front of it, both invocations stop the same run, and the second one failed with
+  `PipelineExecutionNotStoppableException` (and was retried by EventBridge). It now logs that the
+  run has already been stopped.
+
 ## v3.10.0
 
 ### Added

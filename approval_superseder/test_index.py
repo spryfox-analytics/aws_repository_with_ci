@@ -30,7 +30,7 @@ class Pipeline:
     """
 
     def __init__(self, runs, at=None, done=None):
-        self.runs = runs
+        self.runs = dict(runs)
         self.at = at or {}
         self.done = done or {}
         self.stopped = []
@@ -61,7 +61,14 @@ class Pipeline:
 
     def stop_pipeline_execution(self, pipelineName, pipelineExecutionId, abandon, reason):  # pylint: disable=invalid-name,unused-argument
         assert abandon
+        if self.runs[pipelineExecutionId][1] != "InProgress":
+            raise PipelineExecutionNotStoppableException(pipelineExecutionId)
         self.stopped.append(pipelineExecutionId)
+        self.runs[pipelineExecutionId] = (self.runs[pipelineExecutionId][0], "Stopped")
+
+
+class PipelineExecutionNotStoppableException(Exception):
+    """Named like the error CodePipeline raises for a run that is already stopped."""
 
 
 def stage_succeeded(run_id, stage):
@@ -183,6 +190,24 @@ class SeveralGates(unittest.TestCase):
         runs = {"a": (0, "InProgress"), "b": (5, "InProgress")}
         pipeline = Pipeline(runs, {"Int": ("a", "approve-int")}, {"a": [("Source", "Source")], "b": [("Source", "Source")]})
         self.assertEqual(run_handler(pipeline, stage_succeeded("b", "Source")), ["a"])
+
+    def test_both_events_of_a_race_stop_the_run_once(self):
+        # b reaches the approval while c finishes dev; both invocations decide to stop b.
+        runs = {"b": (5, "InProgress"), "c": (10, "InProgress")}
+        pipeline = Pipeline(runs, {"Int": ("b", "approve-int")}, {"b": DEV_DONE, "c": DEV_DONE})
+        self.assertEqual(run_handler(pipeline, approval_started("b", INT_GATE)), ["b"])
+        pipeline.at = {"Int": ("b", "approve-int")}  # the state still shows b waiting for a moment
+        self.assertEqual(run_handler(pipeline, stage_succeeded("c", "Dev")), ["b"])
+
+    def test_other_errors_are_raised(self):
+        pipeline = Pipeline({"a": (0, "InProgress"), "b": (5, "InProgress")}, {"Int": ("a", "approve-int")}, {"a": DEV_DONE, "b": DEV_DONE})
+
+        def fail(**_kwargs):
+            raise RuntimeError("AccessDenied")
+
+        pipeline.stop_pipeline_execution = fail
+        with self.assertRaises(RuntimeError):
+            run_handler(pipeline, {})
 
     def test_without_gates_nothing_happens(self):
         index.GATES = []
